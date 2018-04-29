@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Lisp in TypeScript on Browser</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style type="text/css">
+      body { background: white; margin: 2em }
+      h1, h2 { text-indent: 0.3em }
+      h1 { background: #EEF; margin-left: -0.5em }
+      h2 { background: #DDF; margin-left: -0.5em }
+      span.warn { color: red }
+      address { text-align: right }
+      textarea { font-family: monospace }
+      pre { white-space: pre-wrap; width: 49em;
+            overflow: auto; background-color: #F8F8FF }
+    </style>
+    <script type="text/javascript" src="lisp.js"></script>
+  </head>
+  <body>
+    <h1>A Lisp interpreter in TypeScript on your Browser</h1>
+    <address>April 29, 2018 (H30.4/29 in Japan)<br> SUZUKI Hisao
+    </address>
+
+    <p>
+      Now you have a Lisp interpreter on your browser.
+      It does <i>not</i> communicate with any servers; it runs offline.
+
+    <p>
+      Click the <b>Evaluate</b> button and 
+      Lisp expressions written in the <b>text area</b> will be evaluated;
+      the output and result will be displayed below the button.
+
+    <p>
+      Initially, a program that calculates Fibonacci numbers for 5 and 10
+      is written in the text area as an <i>example</i>.
+      Just click the <b>Evaluate</b> button and
+      <tt>5</tt> and <tt>55</tt> will be displayed.
+      Feel free to modify the program or 
+      wipe it off to write arbitrary Lisp expressions there.
+
+    <p>
+      The Lisp interpreter <tt>lisp.js</tt> used here is an ECMAScript
+      program generated from <tt>lisp.ts</tt> with the TypeScript compiler.
+
+    <p>
+<textarea id="r_area" rows="15" cols="80">
+(defun fib (n)
+  (if (<= n 1)
+      n
+    (+ (fib (- n 1))
+       (fib (- n 2)))))
+
+(print (fib 5))   ; => 5
+(fib 10)          ; => 55
+</textarea>
+
+    <p>
+    <button onclick="r_eval()" >Evaluate</button>
+    <p>
+    <pre id="w_area" style="height: 10em"></pre>
+
+    <script type="text/javascript">
+      var r_area = document.getElementById("r_area"); // to read
+      var w_area = document.getElementById("w_area"); // to write
+
+      function write(s) {
+          w_area.innerHTML += safe_string(s);
+      }
+
+      function exit(n) {
+          var s = safe_string(str(n));
+          w_area.innerHTML += (
+              '<span class="warn">(exit ' + s +
+                  ') is not implemented.</span>\n');
+          return null;
+      }
+
+      function r_eval() {
+          var s = r_area.value;
+          w_area.innerHTML = '';
+          try {
+              var interp = new Interp();
+              run(interp, prelude);
+              var r = run(interp, s);
+              w_area.innerHTML += safe_string(str(r));
+          } catch (ex) {
+              w_area.innerHTML += (
+                  '<span class="warn">' + safe_string(ex) + '</span>');
+          }
+      }
+
+      function safe_string(s) {
+          s = s + "";
+          s = s.replace(/&/g, "&amp;");
+          s = s.replace(/</g, "&lt;");
+          s = s.replace(/>/g, "&gt;");
+          return s;
+      }
+    </script>
+  </body>
+</html>
