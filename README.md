@@ -1,17 +1,21 @@
 # Lisp in TypeScript
 
 This is a Lisp interpreter compatible with
-[lisp-in-dart](https://github.com/nukata/lisp-in-dart)
-except for numeric types and REPL:
-numbers are limited to _the Number type_ of ECMAScript
-and an expression must be written in one line at REPL.
-I wrote it two years ago (2016 or H28) in TypeScript 1.7 and revised slightly
+[lisp-in-dart](https://github.com/nukata/lisp-in-dart) and
+[lisp-in-go](https://github.com/nukata/lisp-in-go) except for REPL:
+an expression must be written in one line at REPL.
+
+I first wrote it three years ago (2016 or H28) in TypeScript 1.7 and revised it slightly
 one year later (2017 or H29) in TypeScript 2.2.
 It had been presented under the MIT License at
 <http://www.oki-osk.jp/esc/typescript/lisp-en.html> (broken link)
-until last spring (2017 or H29).
+until the spring of 2017 (H29).
+I made the repository in GitHub last year (2018 or H30).
 
-Just as lisp-in-dart and [lisp-in-go](https://github.com/nukata/lisp-in-go), 
+Now (2019 or R1) I made use of `BigInt` if possible.
+If you run it on a recent Node.js, you will enjoy infinite-precision integers.
+
+Just as lisp-in-dart and lisp-in-go,
 this is a Lisp-1 with TCO (tail call optimization)
 and partially hygienic macros but being a subset of Common Lisp
 in a loose meaning.
@@ -23,15 +27,15 @@ Examples are found in
 
 ## How to run
 
-Use TypeScript 2.2 or later to compile [`lisp.ts`](lisp.ts) into `lisp.js`.
+Use TypeScript 3.6 or later to compile [`lisp.ts`](lisp.ts) into `lisp.js`.
 
 ```
-$ tsc -t ES5 lisp.ts
+$ tsc -t ESNext --outFile list.js lisp.ts
 $ node lisp.js
 > (+ 5 6)
 11
 > *version*
-(1.27 "TypeScript" "Nukata Lisp Light")
+(1.9 "TypeScript" "Nukata Lisp")
 > (exit 0)
 $
 ```
@@ -68,4 +72,3 @@ $ open examples/run-on-web.html
 ## License
 
 This is under the MIT License.
-See [`lisp.ts L1370-L1390`](lisp.ts#L1370-L1390).

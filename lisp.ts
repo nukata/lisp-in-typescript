@@ -1,11 +1,9 @@
 /*
-  Nukata Lisp Light 1.27 in TypeScript 2.2 by SUZUKI Hisao (H29.3/13)
-  $ tsc -t ES2015 lisp.ts && node lisp.js
-  See "A Lisp interpreter in TypeScript"
-      http://www.oki-osk.jp/esc/typescript/lisp-en.html
+  Nukata Lisp 1.90.0 in TypeScript 3.6 by SUZUKI Hisao (H28.02.08/R01.11.04)
+  $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 
-"use strict";
+/// <reference path="arith.ts" />
 
 // Class and functions for the convenience of porting from Dart
 
@@ -400,41 +398,52 @@ class Interp {
         this.def("stringp", 1, (a: any[]) =>
                  (typeof a[0] === "string") ? true : null);
         this.def("numberp", 1, (a: any[]) =>
-                 (typeof a[0] === "number") ? true : null);
-        this.def("eql", 2, (a: any[]) => (a[0] === a[1]) ? true : null);
-        this.def("<", 2, (a: any[]) => (a[0] < a[1]) ? true : null);
-        this.def("%", 2, (a: any[]) => a[0] % a[1]);
+                 isNumeric(a[0]) ? true : null);
+
+        this.def("eql", 2, (a: any[]) => {
+            let x = a[0];
+            let y = a[1];
+            return (x === y) ? true :
+                (isNumeric(x) && isNumeric(y) && compare(x, y) === 0) ? true :
+                null;
+        });
+
+        this.def("<", 2, (a: any[]) =>
+                 (compare(a[0], a[1]) < 0) ? true : null);
+        this.def("%", 2, (a: any[]) =>
+                 remainder(a[0], a[1]));
 
         this.def("mod", 2, (a: any[]) => {
             let x = a[0];
             let y = a[1];
-            if ((x < 0 && y > 0) || (x > 0 && y < 0))
-                return x % y + y;
-            return x % y;
+            let q = remainder(x, y);
+            return (compare(multiply(x, y), ZERO) < 0) ? add(q, y) : q;
         });
 
-        this.def("+", -1, (a: any[]) => foldl(0, a[0], (i, j) => i + j));
-        this.def("*", -1, (a: any[]) => foldl(1, a[0], (i, j) => i * j));
+        this.def("+", -1, (a: any[]) =>
+                 foldl(ZERO, a[0], (i, j) => add(i, j)));
+        this.def("*", -1, (a: any[]) =>
+                 foldl(ONE, a[0], (i, j) => multiply(i, j)));
 
         this.def("-", -2, (a: any[]) => {
             let x = a[0];
             let y: Cell = a[1];
-            return (y == null) ? -x : foldl(x, y, (i, j) => i - j);
+            return (y == null) ? -x : foldl(x, y, (i, j) => subtract(i, j));
         })
 
         this.def("/", -3, (a: any[]) => 
-                 foldl(a[0] / a[1], a[2], (i, j) => i / j));
+                 foldl(a[0] / a[1], a[2], (i, j) => divide(i, j)));
 
         this.def("truncate", -2, (a: any[]) => {
             let x = a[0];
             let y: Cell = a[1];
             if (y === null) {
+                return quotient(x, ONE);
             } else if (y.cdr === null) {
-                x = x / y.car;
+                return quotient(x, y.car);
             } else {
                 throw "one or two arguments expected";
             }
-            return (x < 0) ? Math.ceil(x) : Math.floor(x);
         });
 
         this.def("prin1", 1, (a: any[]) => {
@@ -474,9 +483,9 @@ class Interp {
         });
 
         this.globals["*version*"] =   // named after Tōkai-dō Mikawa-koku
-            new Cell(1.27,            // Nukata-gun (東海道 三河国 額田郡)
+            new Cell(1.900,           // Nukata-gun (東海道 三河国 額田郡)
                      new Cell("TypeScript",
-                              new Cell("Nukata Lisp Light", null)));
+                              new Cell("Nukata Lisp", null)));
     }
 
     // Define a built-in function by giving a name, a carity, and a body.
@@ -1004,8 +1013,8 @@ class Reader {
                     this.token = s;
                     return;
                 }
-                let n = Number(t);
-                if (! isNaN(n))
+                let n = tryToParse(t);
+                if (n !== null)
                     this.token = n;
                 else if (t === "nil")
                     this.token = null;
@@ -1169,6 +1178,7 @@ const prelude = `
 
 (setq
  = eql
+ rem %
  null not
  setcar rplaca
  setcdr rplacd)
@@ -1366,25 +1376,3 @@ if (typeof process !== "undefined" && typeof require !== "undefined") {
         }
     }
 }
-
-/*
-  Copyright (c) 2016 OKI Software Co., Ltd.
-
-  Permission is hereby granted, free of charge, to any person obtaining a
-  copy of this software and associated documentation files (the "Software"),
-  to deal in the Software without restriction, including without limitation
-  the rights to use, copy, modify, merge, publish, distribute, sublicense,
-  and/or sell copies of the Software, and to permit persons to whom the
-  Software is furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-  DEALINGS IN THE SOFTWARE.
-*/
