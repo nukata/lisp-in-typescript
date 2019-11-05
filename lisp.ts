@@ -1,5 +1,5 @@
 /*
-  Nukata Lisp 1.90.0 in TypeScript 3.6 by SUZUKI Hisao (H28.02.08/R01.11.04)
+  Nukata Lisp 1.91.0 in TypeScript 3.6 by SUZUKI Hisao (H28.02.08/R01.11.05)
   $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 
@@ -9,16 +9,13 @@
 
 // Base class of user-defined exceptions
 class Exception extends Error {
-   constructor(message: string)  {
-       super();
-       // XXX super(message) has no effects for Error; set it up manually.
+   constructor(...params)  {
+       super(...params);
 
        // Capture the stack trace if it runs on Node.js.
        let capture = Error["captureStackTrace"];
        if (capture !== undefined)
            capture(this, this.constructor);
-
-       this.message = message;
 
        // If Function#name in ES6 is available,
        // set the class name at runtime to this.name;
@@ -26,14 +23,6 @@ class Exception extends Error {
        let name = this.constructor["name"];
        this.name = (name !== undefined) ? name : "Exception";
     }
-}
-
-// Return true if two arguments are identical. (cf. Object#if in ES6)
-function identical(x: any, y: any): boolean {
-    if (x === y)
-        return x !== 0 || 1 / x === 1 / y;
-    else
-        return x !== x && y !== y;
 }
 
 // A substitution of assert statement
@@ -77,7 +66,7 @@ function mapcar(j: Cell, fn: (x: any)=>any) {
     let d = j.cdr;
     if (d instanceof Cell)
         d = mapcar(d, fn);
-    if (identical(j.car, a) && identical(j.cdr, d))
+    if (Object.is(j.car, a) && Object.is(j.cdr, d))
         return j;
     return new Cell(a, d);
 }
@@ -386,7 +375,7 @@ class Interp {
         this.def("atom", 1, (a: any[]) =>
                  (a[0] instanceof Cell) ? null : true);
         this.def("eq", 2, (a: any[]) =>
-                 identical(a[0], a[1]) ? true : null);
+                 Object.is(a[0], a[1]) ? true : null);
 
         this.def("list", -1, (a: any[]) => a[0]);
         this.def("rplaca", 2, (a: any[]) =>
@@ -483,7 +472,7 @@ class Interp {
         });
 
         this.globals["*version*"] =   // named after Tōkai-dō Mikawa-koku
-            new Cell(1.900,           // Nukata-gun (東海道 三河国 額田郡)
+            new Cell(1.910,           // Nukata-gun (東海道 三河国 額田郡)
                      new Cell("TypeScript",
                               new Cell("Nukata Lisp", null)));
     }
@@ -494,7 +483,7 @@ class Interp {
     }
 
     // Evaluate a Lisp expression in an environment.
-    eval(x: any, env: Cell): any {
+    eval(x: unknown, env: Cell): unknown {
         try {
             for (;;) {
                 if (x instanceof Arg) {
@@ -576,7 +565,7 @@ class Interp {
     }
 
     // (progn E1 E2 .. En) => Evaluate E1, E2, .. except for En and return it.
-    private evalProgN(j: Cell, env: Cell): any {
+    private evalProgN(j: Cell, env: Cell): unknown {
         if (j === null)
             return null;
         for (;;) {
@@ -589,7 +578,7 @@ class Interp {
     }
 
     // Evaluate a conditional expression and return the selection unevaluated.
-    private evalCond(j: Cell, env: Cell): any {
+    private evalCond(j: Cell, env: Cell): unknown {
         for (; j !== null; j = cdrCell(j)) {
             let clause = j.car;
             if (clause instanceof Cell) {
@@ -609,8 +598,8 @@ class Interp {
     }
 
     // (setq V1 E1 ..) => Evaluate Ei and assign it to Vi; return the last.
-    private evalSetQ(j: Cell, env: Cell): any {
-        let result: any = null;
+    private evalSetQ(j: Cell, env: Cell): unknown {
+        let result: unknown = null;
         for (; j !== null; j = cdrCell(j)) {
             let lval = j.car;
             j = cdrCell(j);
@@ -641,7 +630,7 @@ class Interp {
     }
 
     // Expand macros and quasi-quotations in an expression.
-    private expandMacros(j: any, count: number): any {
+    private expandMacros(j: unknown, count: number): any {
         if (count > 0 && j instanceof Cell) {
             let k = j.car;
             switch (k) {
@@ -664,7 +653,7 @@ class Interp {
                     let z = (<Macro> k).expandWith(this, d);
                     return this.expandMacros(z, count - 1);
                 }
-                return mapcar(j, (x: any) => this.expandMacros(x, count));
+                return mapcar(j, (x: unknown) => this.expandMacros(x, count));
             }
         } else {
             return j;
@@ -672,7 +661,7 @@ class Interp {
     }
 
     // Replace inner lambda expressions with Lambda instances.
-    private compileInners(j: any): any {
+    private compileInners(j: unknown): any {
         if (j instanceof Cell) {
             let k = j.car;
             switch (k) {
@@ -771,7 +760,7 @@ function scanForQQ(j: any, table: {[key: string]: Arg}, level: number): any {
             let d = (level === 0) ?
                 scanForArgs(j.cdr, table) :
                 scanForQQ(j.cdr, table, level - 1);
-            if (identical(d, j.cdr))
+            if (Object.is(d, j.cdr))
                 return j;
             return new Cell(k, d);
         } else {
@@ -898,41 +887,57 @@ function qqExpand2(y: any, level: number): any {
 
 //----------------------------------------------------------------------
 
-// Reader of Lisp expressions
+// A list of tokens, which works as a reader of Lisp expressions
 class Reader {
-    private token: any;
-    private lines: string[][];
+    private token: unknown;
+    private tokens: string[] = [];
     private lineNo: number = 1;
 
-    // Construct a Reader which will read Lisp exps from a given string.
-    constructor(text: string) {
+    // Split a text into a list of tokens and append it to this.tokens.
+    // For "(a \n 1)" it appends ["(", "a", "\n", "1", ")", "\n"] to tokens.
+    push(text: string): void {
         let tokenPat = /\s+|;.*$|("(\\.?|.)*?"|,@?|[^()'`~"; \t]+|.)/g;
-        let textlines = text.split("\n");
-        this.lines = new Array<string[]>();
-        for (;;) {
-            let line = textlines.shift();
-            if (line === undefined)
-                break;
-            let tokens = new Array<string>();
+        for (let line of text.split("\n")) {
             for (;;) {
                 let result = tokenPat.exec(line);
                 if (result === null)
                     break;
                 let s = result[1];
                 if (s !== undefined)
-                    tokens.push(s)
+                    this.tokens.push(s)
             }
-            this.lines.push(tokens);
+            this.tokens.push("\n");
         }
     }
 
-    // Read a Lisp expression; return EndOfFile if the input runs out.
-    read(): any {
+    // Make this be a clone of the other.
+    copyFrom(other: Reader): void {
+        this.tokens = other.tokens.slice();
+        this.lineNo = other.lineNo;
+    }
+
+    // Make this have no tokens.
+    clear(): void {
+        this.tokens.length = 0;
+    }
+
+    // Does this have no tokens?
+    isEmpty(): boolean {
+        for (let t of this.tokens)
+            if (t !== "\n")
+                return false;
+        return true;
+    }
+
+    // Read a Lisp expression; throw EndOfFile if this.tokens run out.
+    read(): unknown {
         try {
             this.readToken();
             return this.parseExpression();
         } catch (ex) {
-            if (ex instanceof FormatException)
+            if (ex === EndOfFile)
+                throw EndOfFile;
+            else if (ex instanceof FormatException)
                 throw new EvalException(
                     "syntax error", ex.message + " at " + this.lineNo, false);
             else
@@ -940,7 +945,7 @@ class Reader {
         }
     }
 
-    private parseExpression(): any {
+    private parseExpression(): unknown {
         switch (this.token) {
         case leftParenSym:      // (a b c)
             this.readToken();
@@ -969,15 +974,13 @@ class Reader {
         }
     }
 
-    private parseListBody(): any {
-        if (this.token == EndOfFile) {
-            throw new FormatException('")" expected: ' + this.token);
-        } if (this.token === rightParenSym) {
+    private parseListBody(): unknown {
+        if (this.token === rightParenSym) {
             return null;
         } else {
             let e1 = this.parseExpression();
             this.readToken();
-            let e2: any;
+            let e2: unknown;
             if (this.token == dotSym) { // (a . b)
                 this.readToken();
                 e2 = this.parseExpression();
@@ -993,13 +996,13 @@ class Reader {
 
     // Read the next token and set it to this.token.
     private readToken(): void {
-        if (this.lines.length === 0) {
-            this.token = EndOfFile;
-            return;
-        }
         for (;;) {
-            let t = this.lines[0].shift();
-            if (t !== undefined) {
+            let t = this.tokens.shift();
+            if (t === undefined) {
+                throw EndOfFile;
+            } else if (t === "\n") {
+                this.lineNo += 1;
+            } else {
                 if (t[0] === '"') {
                     let s = t;
                     let n = s.length - 1;
@@ -1024,13 +1027,6 @@ class Reader {
                     this.token = newSym(t);
                 return;
             }
-            // If the line runs out
-            this.lines.shift();
-            if (this.lines.length === 0) {
-                this.token = EndOfFile;
-                return;
-            }
-            this.lineNo += 1;
         }
     }
 
@@ -1133,19 +1129,100 @@ function strListBody(x: Cell, count: number, printed: Cell[]): string {
     return s.join(" ");
 }
 
+
 
 //----------------------------------------------------------------------
 
-// Evaluate a string as a list of Lisp exps; return the result of the last exp.
-function run(interp: Interp, input: string): any {
-    let r = new Reader(input);
-    let result: any;
-    for (;;) {
-        let e = r.read();
-        if (e === EndOfFile)
-            return result;
-        result = interp.eval(e, null);
+type ReadState = [(a: any)=>void, (a: any)=>void, string, string];
+
+// Read-Eval-Print Loop
+class REPL {
+    private stdInTokens: Reader = new Reader();
+    private oldTokens: Reader = new Reader();
+    private readState: ReadState = undefined;
+
+    // Read an expression from the standard-in asynchronously.
+    private readExpression(prompt1: string, prompt2: string): unknown {
+        this.oldTokens.copyFrom(this.stdInTokens);
+        try {
+            return this.stdInTokens.read();
+        } catch (ex) {
+            if (ex === EndOfFile) {
+                if (this.readState !== undefined)
+                    throw Error("bad read state");
+                write(this.oldTokens.isEmpty() ? prompt1 : prompt2);
+                return new Promise((resolve, reject) => {
+                    this.readState = [resolve, reject, prompt1, prompt2];
+                    // Continue into stdInOnData/stdInOnEnd.
+                });
+            } else {
+                this.stdInTokens.clear(); // Discard the erroneous tokens.
+                throw ex;
+            }
+        }
     }
+
+    stdInOnData(line: string): void {
+        this.oldTokens.push(line);
+        this.stdInTokens.copyFrom(this.oldTokens);
+        if (this.readState !== undefined) {
+            let [resolve, reject, prompt1, prompt2] = this.readState;
+            try {
+                let exp = this.stdInTokens.read();
+                resolve(exp);
+                this.readState = undefined;
+            } catch (ex) {
+                if (ex === EndOfFile) {
+                    write(this.oldTokens.isEmpty() ? prompt1 : prompt2);
+                    // Continue into stdInOnData/stdInOnEnd.
+                } else {
+                    this.stdInTokens.clear(); // Discard the erroneous tokens.
+                    reject(ex);
+                    this.readState = undefined;
+                }
+            }
+        }
+    }
+
+    stdInOnEnd(): void {
+        if (this.readState !== undefined) {
+            let [resolve, _1, _2, _3] = this.readState;
+            resolve(EndOfFile);
+            this.readState = undefined;
+        }
+    }
+
+    // Repeat Read-Eval-Print until End-Of-File asynchronously.
+    async readEvalPrintLoop(interp: Interp): Promise<void> {
+        for (;;) {
+            try {
+                let exp = await this.readExpression("> ", "  ");
+                if (exp === EndOfFile) {
+                    write("Goodbye\n");
+                    return;
+                }
+                let result = interp.eval(exp, null);
+                write(str(result) + "\n");
+            } catch (ex) {
+                if (ex instanceof EvalException)
+                    write(ex + "\n");
+                else
+                    throw ex;
+            }
+        }
+    }
+}
+
+// Evaluate a string as a list of Lisp exps; return the result of the last exp.
+function run(interp: Interp, text: string): unknown {
+    let tokens = new Reader();
+    tokens.push(text);
+    let result = undefined;
+    while (! tokens.isEmpty()) {
+        let exp = tokens.read();
+        result = interp.eval(exp, null);
+    }
+    return result;
 }
 
 // Lisp initialization script
@@ -1336,43 +1413,40 @@ if (typeof process !== "undefined" && typeof require !== "undefined") {
     write = (s: string) => process.stdout.write(s);
     exit = process.exit;
 
-    // Run interactively in UTF-8 for no argument or any "-" argument.
-    // Run each as a script file in UTF-8 in order for other arguments.
-    // XXX An exp must be written in one line when running interactively.
-    let argv = process.argv;
-    if (argv.length <= 2)
-        argv = [undefined, undefined, "-"];
-    let stdin = undefined;
-    let fs = undefined;
     let interp = new Interp();
     run(interp, prelude);
-    for (let i = 2; i < argv.length; i++) {
-        let fileName = argv[i];
-        if (fileName == "-") {
-            if (stdin === undefined) {
-                stdin = process.openStdin();
-                stdin.setEncoding("utf8");
-                write("> ");
-                stdin.on("data", (input: string) => {
-                    try {
-                        let r = run(interp, input);
-                        write(str(r));
-                    } catch (ex) {
-                        if (ex instanceof EvalException)
-                            write("\n" + ex);
-                        else
-                            throw ex;
+
+    async function main() {
+        try {
+            let stdin = undefined;
+            let fs = undefined;
+            // Run interactively in UTF-8 for no arguments or the "-" argument.
+            // Run each as a script file in UTF-8 in order for other arguments.
+            let argv = process.argv;
+            if (argv.length <= 2)
+                argv = [undefined, undefined, "-"];
+            for (let i = 2; i < argv.length; i++) {
+                let fileName = argv[i];
+                if (fileName == "-") {
+                    if (stdin === undefined) {
+                        let repl = new REPL();
+                        stdin = process.stdin;
+                        stdin.setEncoding("utf8");
+                        stdin.on("data", (line) => repl.stdInOnData(line));
+                        stdin.on("end", () => repl.stdInOnEnd());
+                        await repl.readEvalPrintLoop(interp);
                     }
-                    write("\n> ");
-                });
-                stdin.on("end", () => {
-                    write("Goodbye\n");
-                });
+                } else {
+                    fs = fs || require("fs");
+                    let text = fs.readFileSync(fileName, "utf8");
+                    run(interp, text);
+                }
             }
-        } else {
-            fs = fs || require("fs");
-            let text = fs.readFileSync(fileName, "utf8");
-            run(interp, text);
+        } catch (ex) {
+            console.log(ex);
+            process.exit(1);
         }
     }
+
+    main();
 }
