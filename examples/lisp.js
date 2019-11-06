@@ -110,7 +110,7 @@ function tryToParse(token) {
     }
 }
 /*
-  Nukata Lisp 1.91.0 in TypeScript 3.6 by SUZUKI Hisao (H28.02.08/R01.11.05)
+  Nukata Lisp 1.92.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.07)
   $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 /// <reference path="arith.ts" />
@@ -172,13 +172,13 @@ function mapcar(j, fn) {
 }
 // Lisp symbol
 class Sym {
+    // Construct an uninterned symbol.
     constructor(name) {
         this.name = name;
-    } // Construct an uninterned symbol.
-    toString() { return this.name; }
-    get isInterned() {
-        return symTable[this.name] === this;
     }
+    toString() { return this.name; }
+    // Is it interned?
+    get isInterned() { return symTable[this.name] === this; }
 }
 // Expression keyword
 class Keyword extends Sym {
@@ -289,7 +289,9 @@ class DefinedFunc extends Func {
 }
 // Compiled macro expression
 class Macro extends DefinedFunc {
-    constructor(carity, body) { super(carity, body); }
+    constructor(carity, body) {
+        super(carity, body);
+    }
     toString() { return `#<macro:${this.carity}:${str(this.body)}>`; }
     // Expand the macro with a list of actual arguments.
     expandWith(interp, arg) {
@@ -307,7 +309,9 @@ class Macro extends DefinedFunc {
 }
 // Compiled lambda expression (within another function)
 class Lambda extends DefinedFunc {
-    constructor(carity, body) { super(carity, body); }
+    constructor(carity, body) {
+        super(carity, body);
+    }
     toString() { return `#<lambda:${this.carity}:${str(this.body)}>`; }
     static make(carity, body, env) {
         assert(env === null);
@@ -424,7 +428,7 @@ class Interp {
         this.def("list", -1, (a) => a[0]);
         this.def("rplaca", 2, (a) => { a[0].car = a[1]; return a[1]; });
         this.def("rplacd", 2, (a) => { a[0].cdr = a[1]; return a[1]; });
-        this.def("length", 1, (a) => (a[0] === null ? 0 : a[0].length));
+        this.def("length", 1, (a) => (a[0] === null ? 0 : quotient(a[0].length, 1)));
         this.def("stringp", 1, (a) => (typeof a[0] === "string") ? true : null);
         this.def("numberp", 1, (a) => isNumeric(a[0]) ? true : null);
         this.def("eql", 2, (a) => {
@@ -449,7 +453,7 @@ class Interp {
             let y = a[1];
             return (y == null) ? -x : foldl(x, y, (i, j) => subtract(i, j));
         });
-        this.def("/", -3, (a) => foldl(a[0] / a[1], a[2], (i, j) => divide(i, j)));
+        this.def("/", -3, (a) => foldl(divide(a[0], a[1]), a[2], (i, j) => divide(i, j)));
         this.def("truncate", -2, (a) => {
             let x = a[0];
             let y = a[1];
@@ -476,10 +480,10 @@ class Interp {
             return true;
         });
         const gensymCounter = "*gensym-counter*";
-        this.globals[gensymCounter] = 1;
+        this.globals[gensymCounter] = ONE;
         this.def("gensym", 0, (a) => {
             let i = this.globals[gensymCounter];
-            this.globals[gensymCounter] = i + 1;
+            this.globals[gensymCounter] = i + ONE;
             return new Sym("G" + i); // an uninterned symbol
         });
         this.def("make-symbol", 1, (a) => new Sym(a[0]));
@@ -494,7 +498,7 @@ class Interp {
             return s;
         });
         this.globals["*version*"] = // named after Tōkai-dō Mikawa-koku
-            new Cell(1.910, // Nukata-gun (東海道 三河国 額田郡)
+            new Cell(1.920, // Nukata-gun (東海道 三河国 額田郡)
             new Cell("TypeScript", new Cell("Nukata Lisp", null)));
     }
     // Define a built-in function by giving a name, a carity, and a body.
@@ -939,10 +943,7 @@ class Reader {
     }
     // Does this have no tokens?
     isEmpty() {
-        for (let t of this.tokens)
-            if (t !== "\n")
-                return false;
-        return true;
+        return this.tokens.every((t) => t === "\n");
     }
     // Read a Lisp expression; throw EndOfFile if this.tokens run out.
     read() {

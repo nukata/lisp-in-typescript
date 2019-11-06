@@ -1,7 +1,8 @@
 # Lisp in TypeScript
 
 This is a Lisp interpreter compatible with
-[lisp-in-dart](https://github.com/nukata/lisp-in-dart) and
+[lisp-in-dart](https://github.com/nukata/lisp-in-dart),
+[lisp-in-cs](https://github.com/nukata/lisp-in-cs) and
 [lisp-in-go](https://github.com/nukata/lisp-in-go).
 
 I first wrote it three years ago (2016 or H28) in TypeScript 1.7 and revised it slightly
@@ -15,7 +16,7 @@ Now (2019 or R1) I made use of `BigInt` if possible.
 If you run it on a recent Node.js, you will enjoy infinite-precision integers.
 I also revised REPL.
 
-Just as lisp-in-dart and lisp-in-go,
+Just as lisp-in-dart, lisp-in-cs and lisp-in-go,
 this is a Lisp-1 with TCO (tail call optimization)
 and partially hygienic macros but being a subset of Common Lisp
 in a loose meaning.
@@ -35,7 +36,7 @@ $ node lisp.js
 > (+ 5 6)
 11
 > *version*
-(1.91 "TypeScript" "Nukata Lisp")
+(1.92 "TypeScript" "Nukata Lisp")
 > (exit 0)
 $
 ```

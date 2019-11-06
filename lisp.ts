@@ -1,5 +1,5 @@
 /*
-  Nukata Lisp 1.91.0 in TypeScript 3.6 by SUZUKI Hisao (H28.02.08/R01.11.05)
+  Nukata Lisp 1.92.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.07)
   $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 
@@ -43,6 +43,7 @@ var exit: (n: number) => void;  // Terminate the process with exit code n.
 class Cell {
     constructor(public car: any,
                 public cdr: any) {}
+
     toString(): string { return "(" + this.car + " . " + this.cdr + ")" }
 
     // Length as a list
@@ -50,7 +51,7 @@ class Cell {
 }
 
 // foldl(x, (a b c), fn) => fn(fn(fn(x, a), b), c)
-function foldl(x: any, j: Cell, fn: (x: any, y: any)=>any) {
+function foldl(x: any, j: Cell, fn: (x: any, y: any)=>any): any {
     while (j !== null) {
         x = fn(x, j.car);
         j = j.cdr;
@@ -59,7 +60,7 @@ function foldl(x: any, j: Cell, fn: (x: any, y: any)=>any) {
 }
 
 // mapcar((a b c), fn) => (fn(a) fn(b) fn(c))
-function mapcar(j: Cell, fn: (x: any)=>any) {
+function mapcar(j: Cell, fn: (x: any)=>any): Cell {
     if (j === null)
         return null;
     let a = fn(j.car);
@@ -74,11 +75,13 @@ function mapcar(j: Cell, fn: (x: any)=>any) {
 
 // Lisp symbol
 class Sym {
-    constructor(public name: string) {} // Construct an uninterned symbol.
+    // Construct an uninterned symbol.
+    constructor(public readonly name: string) {}
+
     toString(): string { return this.name }
-    get isInterned(): boolean { // Is it interned?
-        return symTable[this.name] === this;
-    } 
+
+    // Is it interned?
+    get isInterned(): boolean { return symTable[this.name] === this; }
 }
 
 // Expression keyword
@@ -143,7 +146,7 @@ function cdrCell(x: Cell): Cell {
 // Common base class of Lisp functions
 abstract class Func {
     // carity is a number of arguments, made negative if the func has &rest.
-    constructor(public carity: number) {}
+    constructor(public readonly carity: number) {}
 
     get arity(): number {
         return (this.carity < 0) ? -this.carity : this.carity;
@@ -199,7 +202,10 @@ abstract class Func {
 // Common base class of functions which are defined with Lisp expressions
 abstract class DefinedFunc extends Func {
     // body is a Lisp list as the function body.
-    constructor(carity: number, public body: Cell) { super(carity) }
+    constructor(carity: number,
+                public readonly body: Cell) {
+        super(carity);
+    }
 }
 
 // Common function type which represents any factory methods of DefinedFunc
@@ -208,14 +214,17 @@ type FuncFactory = (carity: number, body: Cell, env: Cell) => DefinedFunc;
 
 // Compiled macro expression
 class Macro extends DefinedFunc {
-    constructor(carity: number, body: Cell) { super(carity, body) }
+    constructor(carity: number, body: Cell) {
+        super(carity, body);
+    }
+
     toString(): string { return `#<macro:${this.carity}:${str(this.body)}>` }
 
     // Expand the macro with a list of actual arguments.
-    expandWith(interp: Interp, arg: Cell) {
+    expandWith(interp: Interp, arg: Cell): unknown {
         let frame = this.makeFrame(arg);
         let env = new Cell(frame, null);
-        let x: any = null;
+        let x: unknown = null;
         for (let j = this.body; j != null; j = cdrCell(j))
             x = interp.eval(j.car, env);
         return x;
@@ -230,7 +239,10 @@ class Macro extends DefinedFunc {
 
 // Compiled lambda expression (within another function)
 class Lambda extends DefinedFunc {
-    constructor(carity: number, body: Cell) { super(carity, body) }
+    constructor(carity: number, body: Cell) {
+        super(carity, body);
+    }
+
     toString(): string { return `#<lambda:${this.carity}:${str(this.body)}>` }
 
     static make(carity: number, body: Cell, env: Cell): DefinedFunc {
@@ -243,7 +255,8 @@ class Lambda extends DefinedFunc {
 // Compiled lambda expression (Closure with environment)
 class Closure extends DefinedFunc {
     // env is the environment of the closure.
-    constructor(carity: number, body: Cell, public env: Cell) {
+    constructor(carity: number, body: Cell,
+                private readonly env: Cell) {
         super(carity, body);
     }
 
@@ -269,20 +282,21 @@ class Closure extends DefinedFunc {
 
 
 // Function type which represents any built-in function bodies
-type BuiltInFuncBody = (frame: any[]) => any;
+type BuiltInFuncBody = (frame: any[]) => unknown;
 
 // Built-in function
 class BuiltInFunc extends Func {
     // name is the function name; body is the function body.
-    constructor(public name: string, carity: number,
-                public body: BuiltInFuncBody) {
+    constructor(private readonly name: string,
+                carity: number,
+                private readonly body: BuiltInFuncBody) {
         super(carity);
     }
 
     toString(): string { return "#<" + this.name + ":" + this.carity + ">" }
 
     // Invoke the built-in function with a list of actual arguments.
-    evalWith(interp: Interp, arg: Cell, interpEnv: Cell): any {
+    evalWith(interp: Interp, arg: Cell, interpEnv: Cell): unknown {
         let frame = this.makeFrame(arg);
         this.evalFrame(frame, interp, interpEnv);
         try {
@@ -299,23 +313,23 @@ class BuiltInFunc extends Func {
 
 // Bound variable in a compiled lambda/macro expression
 class Arg {
-    constructor(public level: number,
-                public offset: number,
-                public symbol: Sym) {}
+    constructor(public readonly level: number,
+                public readonly offset: number,
+                public readonly symbol: Sym) {}
 
     toString(): string {
         return "#" + this.level + ":" + this.offset + ":" + this.symbol;
     }
 
     // Set a value x to the location corresponding to the variable in env.
-    setValue(x: any, env: Cell): void {
+    setValue(x: unknown, env: Cell): void {
         for (let i = 0; i < this.level; i++)
             env = env.cdr;
         env.car[this.offset] = x;
     }
 
     // Get a value from the location corresponding to the variable in env.
-    getValue(env: Cell): any {
+    getValue(env: Cell): unknown {
         for (let i = 0; i < this.level; i++)
             env = env.cdr;
         return env.car[this.offset];
@@ -325,9 +339,9 @@ class Arg {
 
 // Exception in evaluation
 class EvalException extends Exception {
-    trace: string[] = [];
+    readonly trace: string[] = [];
 
-    constructor(msg: string, x: any, quoteString=true) {
+    constructor(msg: string, x: unknown, quoteString=true) {
         super(msg + ": " + str(x, quoteString));
     }
 
@@ -341,7 +355,7 @@ class EvalException extends Exception {
 
 // Exception which indicates an absence of a variable
 class NotVariableException extends EvalException {
-    constructor(x: any) {
+    constructor(x: unknown) {
         super("variable expected", x);
     }
 }
@@ -363,7 +377,7 @@ const EndOfFile = { toString: () => "EOF" };
 class Interp {
     // Table of the global values of symbols
     // XXX Cannot use Sym type for keys; use Sym#name: string instead.
-    globals: {[key: string]: any} = {};
+    readonly globals: {[key: string]: any} = {};
 
     constructor() {
         this.def("car", 1, (a: any[]) =>
@@ -383,7 +397,7 @@ class Interp {
         this.def("rplacd", 2, (a: any[]) =>
                  { (<Cell> a[0]).cdr = a[1]; return a[1] });
         this.def("length", 1, (a: any[]) =>
-                 (a[0] === null ? 0 : a[0].length));
+                 (a[0] === null ? 0 : quotient(a[0].length, 1)));
         this.def("stringp", 1, (a: any[]) =>
                  (typeof a[0] === "string") ? true : null);
         this.def("numberp", 1, (a: any[]) =>
@@ -421,7 +435,7 @@ class Interp {
         })
 
         this.def("/", -3, (a: any[]) => 
-                 foldl(a[0] / a[1], a[2], (i, j) => divide(i, j)));
+                 foldl(divide(a[0], a[1]), a[2], (i, j) => divide(i, j)));
 
         this.def("truncate", -2, (a: any[]) => {
             let x = a[0];
@@ -449,10 +463,10 @@ class Interp {
         });
 
         const gensymCounter = "*gensym-counter*";
-        this.globals[gensymCounter] = 1;
+        this.globals[gensymCounter] = ONE;
         this.def("gensym", 0, (a: any[]) => {
-            let i: number = this.globals[gensymCounter];
-            this.globals[gensymCounter] = i + 1;
+            let i = this.globals[gensymCounter];
+            this.globals[gensymCounter] = i + ONE;
             return new Sym("G" + i); // an uninterned symbol
         });
 
@@ -472,7 +486,7 @@ class Interp {
         });
 
         this.globals["*version*"] =   // named after Tōkai-dō Mikawa-koku
-            new Cell(1.910,           // Nukata-gun (東海道 三河国 額田郡)
+            new Cell(1.920,           // Nukata-gun (東海道 三河国 額田郡)
                      new Cell("TypeScript",
                               new Cell("Nukata Lisp", null)));
     }
@@ -923,10 +937,7 @@ class Reader {
 
     // Does this have no tokens?
     isEmpty(): boolean {
-        for (let t of this.tokens)
-            if (t !== "\n")
-                return false;
-        return true;
+        return this.tokens.every((t: string) => t === "\n");
     }
 
     // Read a Lisp expression; throw EndOfFile if this.tokens run out.
@@ -1137,8 +1148,8 @@ type ReadState = [(a: any)=>void, (a: any)=>void, string, string];
 
 // Read-Eval-Print Loop
 class REPL {
-    private stdInTokens: Reader = new Reader();
-    private oldTokens: Reader = new Reader();
+    private readonly stdInTokens: Reader = new Reader();
+    private readonly oldTokens: Reader = new Reader();
     private readState: ReadState = undefined;
 
     // Read an expression from the standard-in asynchronously.
