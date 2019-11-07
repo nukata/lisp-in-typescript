@@ -1,33 +1,11 @@
 /*
-  Nukata Lisp 1.92.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.07)
+  Nukata Lisp 1.93.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.07)
   $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 
 /// <reference path="arith.ts" />
 
-// Class and functions for the convenience of porting from Dart
-
-// Base class of user-defined exceptions
-class Exception extends Error {
-   constructor(...params)  {
-       super(...params);
-
-       // Capture the stack trace if it runs on Node.js.
-       let capture = Error["captureStackTrace"];
-       if (capture !== undefined)
-           capture(this, this.constructor);
-
-       // If Function#name in ES6 is available,
-       // set the class name at runtime to this.name;
-       // otherwise set a fixed name to it.
-       let name = this.constructor["name"];
-       this.name = (name !== undefined) ? name : "Exception";
-    }
-}
-
-// A substitution of assert statement
-// XXX You must supply message to display what has failed.
-// XXX Costs to call this remains even if you empty the function body.
+// An inefficient substitution of assert statement in Dart
 function assert(x: boolean, message?: string): void {
     if (! x)
         throw new Error("Assertion Failure: " + (message || ""));
@@ -36,7 +14,6 @@ function assert(x: boolean, message?: string): void {
 var write: (s: string) => void; // Output string s (a new line on \n char).
 var exit: (n: number) => void;  // Terminate the process with exit code n.
 
-
 //----------------------------------------------------------------------
 
 // Lisp cons cell
@@ -51,7 +28,7 @@ class Cell {
 }
 
 // foldl(x, (a b c), fn) => fn(fn(fn(x, a), b), c)
-function foldl(x: any, j: Cell, fn: (x: any, y: any)=>any): any {
+function foldl<T>(x: T, j: Cell, fn: (x: T, y: any)=>T): T {
     while (j !== null) {
         x = fn(x, j.car);
         j = j.cdr;
@@ -86,7 +63,9 @@ class Sym {
 
 // Expression keyword
 class Keyword extends Sym {
-    constructor(name: string) { super(name) }
+    constructor(name: string) {
+        super(name);
+    }
 }
 
 // The table of interned symbols
@@ -338,7 +317,7 @@ class Arg {
 
 
 // Exception in evaluation
-class EvalException extends Exception {
+class EvalException extends Error {
     readonly trace: string[] = [];
 
     constructor(msg: string, x: unknown, quoteString=true) {
@@ -362,8 +341,10 @@ class NotVariableException extends EvalException {
 
 
 // Exception thrown when something does not have an expected format
-class FormatException extends Exception {
-    constructor(msg: string) { super(msg) }
+class FormatException extends Error {
+    constructor(msg: string) {
+        super(msg);
+    }
 }
 
 
@@ -477,7 +458,7 @@ class Interp {
         this.def("apply", 2, (a: any[]) =>
                  this.eval(new Cell(a[0], mapcar(a[1], qqQuote)), null));
 
-        this.def("exit", 1, (a: any[]) => exit(a[0]));
+        this.def("exit", 1, (a: any[]) => exit(Number(a[0])));
         this.def("dump", 0, (a: any[]) => {
             let s: Cell = null;
             for (let x in this.globals)
@@ -486,7 +467,7 @@ class Interp {
         });
 
         this.globals["*version*"] =   // named after Tōkai-dō Mikawa-koku
-            new Cell(1.920,           // Nukata-gun (東海道 三河国 額田郡)
+            new Cell(1.930,           // Nukata-gun (東海道 三河国 額田郡)
                      new Cell("TypeScript",
                               new Cell("Nukata Lisp", null)));
     }
@@ -501,22 +482,21 @@ class Interp {
         try {
             for (;;) {
                 if (x instanceof Arg) {
-                    return (<Arg> x).getValue(env);
+                    return x.getValue(env);
                 } else if (x instanceof Sym) {
-                    let value = this.globals[(<Sym> x).name];
+                    let value = this.globals[x.name];
                     if (value === undefined)
                         throw new EvalException("void variable", x);
                     return value;
                 } else if (x instanceof Cell) {
-                    let c = <Cell> x;
-                    let fn = c.car;
-                    let arg = cdrCell(c);
+                    let fn = x.car;
+                    let arg = cdrCell(x);
                     if (fn instanceof Keyword) {
                         switch (<Keyword> fn) {
                         case quoteSym:
                             if (arg !== null && arg.cdr === null)
                                 return arg.car;
-                            throw new EvalException("bad quote", c);
+                            throw new EvalException("bad quote", x);
                         case prognSym:
                             x = this.evalProgN(arg, env);
                             break;
@@ -529,50 +509,48 @@ class Interp {
                             return this.compile(arg, env, Closure.make);
                         case macroSym:
                             if (env !== null)
-                                throw new EvalException("nested macro", c);
+                                throw new EvalException("nested macro", x);
                             return this.compile(arg, null, Macro.make);
                         case quasiquoteSym:
                             if (arg !== null && arg.cdr === null) {
                                 x = qqExpand(arg.car);
                                 break;
                             }
-                            throw new EvalException("bad quasiquote", c);
+                            throw new EvalException("bad quasiquote", x);
                         default:
                             throw new EvalException("bad keyword", fn);
                         }
                     } else {    // Application of a function
                         // Expand fn = eval(fn, env) here on Sym for speed.
                         if (fn instanceof Sym) {
-                            fn = this.globals[(<Sym> fn).name];
+                            fn = this.globals[fn.name];
                             if (fn === undefined)
-                                throw new EvalException("undefined", c.car);
+                                throw new EvalException("undefined", x.car);
                         } else {
                             fn = this.eval(fn, env);
                         }
 
                         if (fn instanceof Closure) {
-                            let cl = <Closure> fn;
-                            env = cl.makeEnv(this, arg, env);
-                            x = this.evalProgN(cl.body, env);
+                            env = fn.makeEnv(this, arg, env);
+                            x = this.evalProgN(fn.body, env);
                         } else if (fn instanceof Macro) {
-                            x = (<Macro> fn).expandWith(this, arg);
+                            x = fn.expandWith(this, arg);
                         } else if (fn instanceof BuiltInFunc) {
-                            return (<BuiltInFunc> fn).evalWith(this, arg, env);
+                            return fn.evalWith(this, arg, env);
                         } else {
                             throw new EvalException("not applicable", fn);
                         }
                     }
                 } else if (x instanceof Lambda) {
-                    return Closure.makeFrom(<Lambda> x, env);
+                    return Closure.makeFrom(x, env);
                 } else {
                     return x;   // numbers, strings, null etc.
                 }
             }
         } catch (ex) {
             if (ex instanceof EvalException) {
-                let eex = <EvalException> ex;
-                if (eex.trace.length < 10)
-                    eex.trace.push(str(x));
+                if (ex.trace.length < 10)
+                    ex.trace.push(str(x));
             }
             throw ex;
         }
@@ -621,9 +599,9 @@ class Interp {
                 throw new EvalException("right value expected", lval);
             result = this.eval(j.car, env);
             if (lval instanceof Arg)
-                (<Arg> lval).setValue(result, env);
+                lval.setValue(result, env);
             else if (lval instanceof Sym && !(lval instanceof Keyword))
-                this.globals[(<Sym> lval).name] = result;
+                this.globals[lval.name] = result;
             else
                 throw new NotVariableException(lval);
         }
@@ -661,13 +639,13 @@ class Interp {
                 throw new EvalException("bad quasiquote", j);
             default:
                 if (k instanceof Sym)
-                    k = this.globals[(<Sym> k).name];
+                    k = this.globals[k.name];
                 if (k instanceof Macro) {
                     let d = cdrCell(j);
-                    let z = (<Macro> k).expandWith(this, d);
+                    let z = k.expandWith(this, d);
                     return this.expandMacros(z, count - 1);
                 }
-                return mapcar(j, (x: unknown) => this.expandMacros(x, count));
+                return mapcar(j, (x) => this.expandMacros(x, count));
             }
         } else {
             return j;
@@ -687,7 +665,7 @@ class Interp {
             case macroSym:
                 throw new EvalException("nested macro", j);
             default:
-                return mapcar(j, (x: any) => this.compileInners(x));
+                return mapcar(j, (x) => this.compileInners(x));
             }
         } else {
             return j;
@@ -699,7 +677,7 @@ class Interp {
 //----------------------------------------------------------------------
 
 // Make an argument table; return a pair of rest-yes/no and the arity.
-function makeArgTable(arg: any, table: {[key: string]: Arg})
+function makeArgTable(arg: unknown, table: {[key: string]: Arg})
 : [boolean, number]
 {
     if (arg === null) {
@@ -723,9 +701,9 @@ function makeArgTable(arg: any, table: {[key: string]: Arg})
             }
             let sym: Sym;
             if (j instanceof Sym)
-                sym = <Sym> j;
+                sym = j;
             else if (j instanceof Arg)
-                sym = (<Arg> j).symbol;
+                sym = j.symbol;
             else
                 throw new NotVariableException(j);
             if (sym.name in table)
@@ -741,23 +719,21 @@ function makeArgTable(arg: any, table: {[key: string]: Arg})
 
 // Scan 'j' for formal arguments in 'table' and replace them with Args.
 // And scan 'j' for free Args not in 'table' and promote their levels.
-function scanForArgs(j: any, table: {[key: string]: Arg}): any {
+function scanForArgs(j: unknown, table: {[key: string]: Arg}): any {
     if (j instanceof Sym) {
-        let k = table[(<Sym> j).name];
+        let k = table[j.name];
         return (k === undefined) ? j : k;
     } else if (j instanceof Arg) {
-        let ag = <Arg> j;
-        let k = table[ag.symbol.name];
+        let k = table[j.symbol.name];
         return (k === undefined) ?
-            new Arg(ag.level + 1, ag.offset, ag.symbol) : k;
+            new Arg(j.level + 1, j.offset, j.symbol) : k;
     } else if (j instanceof Cell) {
-        let c = <Cell> j;
-        if (c.car === quoteSym) {
-            return c;
-        } else if (c.car === quasiquoteSym) {
-            return new Cell(quasiquoteSym, scanForQQ(c.cdr, table, 0));
+        if (j.car === quoteSym) {
+            return j;
+        } else if (j.car === quasiquoteSym) {
+            return new Cell(quasiquoteSym, scanForQQ(j.cdr, table, 0));
         } else {
-            return mapcar(j, (x: any) => scanForArgs(x, table));
+            return mapcar(j, (x) => scanForArgs(x, table));
         }
     } else {
         return j;
@@ -765,7 +741,9 @@ function scanForArgs(j: any, table: {[key: string]: Arg}): any {
 }
 
 // Scan for quasi-quotes and scanForArgs them depending on the nesting level.
-function scanForQQ(j: any, table: {[key: string]: Arg}, level: number): any {
+function scanForQQ(j: unknown, table: {[key: string]: Arg}, level: number)
+: unknown
+{
     if (j instanceof Cell) {
         let k = j.car;
         if (k === quasiquoteSym) {
@@ -778,7 +756,7 @@ function scanForQQ(j: any, table: {[key: string]: Arg}, level: number): any {
                 return j;
             return new Cell(k, d);
         } else {
-            return mapcar(j, (x: any) => scanForQQ(x, table, level));
+            return mapcar(j, (x) => scanForQQ(x, table, level));
         }
     } else {
         return j;
@@ -790,18 +768,17 @@ function scanForQQ(j: any, table: {[key: string]: Arg}, level: number): any {
 // Quasi-Quotation
 
 // Expand x of any quasi-quotation `x into the equivalent S-expression.
-function qqExpand(x: any): any {
+function qqExpand(x: unknown): unknown {
     return qqExpand0(x, 0);     // Begin with the nesting level 0.
 }
 
-function qqExpand0(x: any, level: number): any {
+function qqExpand0(x: unknown, level: number): unknown {
     if (x instanceof Cell) {
-        let c = <Cell> x;
-        if (c.car === unquoteSym) { // ,a
+        if (x.car === unquoteSym) { // ,a
             if (level === 0)
-                return c.cdr.car; // ,a => a
+                return x.cdr.car; // ,a => a
         }
-        let t = qqExpand1(c, level);
+        let t = qqExpand1(x, level);
         if (t.car instanceof Cell && t.cdr === null) {
             let k = t.car;
             if (k.car == listSym || k.car === consSym)
@@ -814,7 +791,7 @@ function qqExpand0(x: any, level: number): any {
 }
 
 // Quote x so that the result evaluates to x.
-function qqQuote(x: any): any {
+function qqQuote(x: unknown): unknown {
     if (x instanceof Sym || x instanceof Cell)
         return new Cell(quoteSym, new Cell(x, null));
     return x;
@@ -823,32 +800,30 @@ function qqQuote(x: any): any {
 // Expand x of `x so that the result can be used as an argument of append.
 // Example 1: (,a b) => ((list a 'b))
 // Example 2: (,a ,@(cons 2 3)) => ((cons a (cons 2 3)))
-function qqExpand1(x: any, level: number): Cell {
+function qqExpand1(x: unknown, level: number): Cell {
     if (x instanceof Cell) {
-        let c = <Cell> x;
-        if (c.car === unquoteSym) { // ,a
+        if (x.car === unquoteSym) { // ,a
             if (level === 0)
                 return x.cdr    // ,a => (a)
             level--;
-        } else if (c.car === quasiquoteSym) { // `a
+        } else if (x.car === quasiquoteSym) { // `a
             level++;
         }
-        let h = qqExpand2(c.car, level);
-        let t = qqExpand1(c.cdr, level); // !== null
+        let h = qqExpand2(x.car, level);
+        let t = qqExpand1(x.cdr, level); // !== null
         if (t.car === null && t.cdr === null) {
             return new Cell(h, null);
         } else if (h instanceof Cell) {
-            let hc = <Cell> h;
-            if (hc.car === listSym) {
-                if (t.car instanceof Cell) {
-                    let tcar = <Cell> t.car;
+            if (h.car === listSym) {
+                let tcar = t.car;
+                if (tcar instanceof Cell) {
                     if (tcar.car === listSym) {
-                        let hh = qqConcat(hc, tcar.cdr);
+                        let hh = qqConcat(h, tcar.cdr);
                         return new Cell(hh, t.cdr);
                     }
                 }
-                if (hc.cdr instanceof Cell) {
-                    let hh = qqConsCons(hc.cdr, t.car);
+                if (h.cdr instanceof Cell) {
+                    let hh = qqConsCons(h.cdr, tcar);
                     return new Cell(hh, t.cdr);
                 }
             }
@@ -860,14 +835,14 @@ function qqExpand1(x: any, level: number): Cell {
 }
 
 // (1 2), (3 4) => (1 2 3 4)
-function qqConcat(x: Cell, y: any): any {
+function qqConcat(x: Cell, y: unknown): unknown {
     if (x === null)
         return y;
     return new Cell(x.car, qqConcat(x.cdr, y));
 }
 
 // (1 2 3), "a" => (cons 1 (cons 2 (cons 3 "a")))
-function qqConsCons(x: Cell, y: any): any {
+function qqConsCons(x: Cell, y: unknown): unknown {
     if (x === null)
         return y;
     return new Cell(consSym, new Cell(x.car,
@@ -876,18 +851,17 @@ function qqConsCons(x: Cell, y: any): any {
 
 // Expand x.car (=y) of `x so that the result can be used as an arg of append.
 // Example: ,a => (list a); ,@(foo 1 2) => (foo 1 2); b => (list 'b)
-function qqExpand2(y: any, level: number): any {
+function qqExpand2(y: unknown, level: number): unknown {
     if (y instanceof Cell) {
-        let yc = <Cell> y;
-        switch (yc.car) {
+        switch (y.car) {
         case unquoteSym:        // ,a
             if (level === 0)
-                return new Cell(listSym, yc.cdr); // ,a => (list a)
+                return new Cell(listSym, y.cdr); // ,a => (list a)
             level--;
             break;
         case unquoteSplicingSym: // ,@a
             if (level === 0)
-                return yc.cdr.car; // ,@a => a
+                return y.cdr.car; // ,@a => a
             level--;
             break;
         case quasiquoteSym:     // `a
@@ -1061,7 +1035,7 @@ const quotes: {[key: string]: string} = {
 };
 
 // Make a string representation of Lisp expression
-function str(x: any, quoteString: boolean = true,
+function str(x: unknown, quoteString: boolean = true,
              count?: number, printed?: Cell[]) : string
 {
     if (x === null) {
@@ -1069,12 +1043,11 @@ function str(x: any, quoteString: boolean = true,
     } else if (x === true) {
         return "t";
     } else if (x instanceof Cell) {
-        let c = <Cell> x;
-        if (c.car instanceof Sym) {
-            let q = quotes[c.car.name];
-            if (q !== undefined && c.cdr instanceof Cell)
-                if (c.cdr.cdr == null)
-                    return q + str(c.cdr.car, true, count, printed);
+        if (x.car instanceof Sym) {
+            let q = quotes[x.car.name];
+            if (q !== undefined && x.cdr instanceof Cell)
+                if (x.cdr.cdr == null)
+                    return q + str(x.cdr.car, true, count, printed);
         }
         return "(" + strListBody(x, count, printed) + ")";
     } else if (typeof x === "string") {
@@ -1097,8 +1070,13 @@ function str(x: any, quoteString: boolean = true,
         }
         bf.push('"');
         return bf.join("");
+    } else if (typeof x === "number") { // 123.0 => "123.0"
+        let s = x + "";
+        if (Number.isInteger(x) && !s.includes("e"))
+            return s + ".0";
+        return s;
     } else if (x instanceof Array) {
-        let s = x.map((e: any) => str(e, true, count, printed)).join(", ");
+        let s = x.map((e) => str(e, true, count, printed)).join(", ");
         return "[" + s + "]";
     } else if (x instanceof Sym) {
         return (x.isInterned) ? x.name : "#:" + x;
@@ -1114,7 +1092,7 @@ function strListBody(x: Cell, count: number, printed: Cell[]): string {
     if (count === undefined)
         count = 4;         // threshold of ellipsis for circular lists
     let s: string[] = [];
-    let y: any;
+    let y: unknown;
     for (y = x; y instanceof Cell; y = y.cdr) {
         if (printed.indexOf(y) < 0) {
             printed.push(y);
@@ -1139,7 +1117,6 @@ function strListBody(x: Cell, count: number, printed: Cell[]): string {
     }
     return s.join(" ");
 }
-
 
 
 //----------------------------------------------------------------------

@@ -28,7 +28,7 @@ Examples are found in
 
 ## How to run
 
-Use TypeScript 3.6 or later to compile [`lisp.ts`](lisp.ts) into `lisp.js`.
+Use TypeScript 3.7 or later to compile [`lisp.ts`](lisp.ts) into `lisp.js`.
 
 ```
 $ tsc -t ESNext --outFile list.js lisp.ts
@@ -36,7 +36,7 @@ $ node lisp.js
 > (+ 5 6)
 11
 > *version*
-(1.92 "TypeScript" "Nukata Lisp")
+(1.93 "TypeScript" "Nukata Lisp")
 > (exit 0)
 $
 ```
