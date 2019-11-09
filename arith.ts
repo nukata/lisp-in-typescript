@@ -1,4 +1,4 @@
-// A little arithmetic in TypeScript 3.6 by SUZUKI Hisao (R01.08.04/R01.11.04)
+// A little arithmetic in TypeScript 3.7 by SUZUKI Hisao (R01.08.04/R01.11.09)
 //  derived from arith.ts at github.com/nukata/little-scheme-in-typescript
 
 'use strict'
@@ -14,7 +14,7 @@ const ZERO = (typeof BigInt === 'undefined') ? 0 : BigInt(0);
 const ONE = (typeof BigInt === 'undefined') ? 1 : BigInt(1);
 
 // Is x a Numeric?
-function isNumeric(x: unknown): boolean {
+function isNumeric(x: unknown): x is Numeric {
     let t = typeof x;
     return t === 'number' || t === 'bigint';
 }
@@ -116,4 +116,14 @@ function tryToParse(token: string): Numeric | null {
             return null;
         return n;
     }
+}
+
+// Convert x to string.
+function convertToString(x: Numeric): string {
+    let s = x + '';
+    if (typeof BigInt !== 'undefined')
+        if (typeof x === 'number')
+            if (Number.isInteger(x) && !s.includes('e'))
+                return s + '.0';    // 123.0 => '123.0'
+    return s;
 }

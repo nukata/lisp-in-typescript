@@ -1,4 +1,4 @@
-// A little arithmetic in TypeScript 3.6 by SUZUKI Hisao (R01.08.04/R01.11.04)
+// A little arithmetic in TypeScript 3.7 by SUZUKI Hisao (R01.08.04/R01.11.09)
 //  derived from arith.ts at github.com/nukata/little-scheme-in-typescript
 'use strict';
 // A Number value is treated as an inexact number.
@@ -109,8 +109,17 @@ function tryToParse(token) {
         return n;
     }
 }
+// Convert x to string.
+function convertToString(x) {
+    let s = x + '';
+    if (typeof BigInt !== 'undefined')
+        if (typeof x === 'number')
+            if (Number.isInteger(x) && !s.includes('e'))
+                return s + '.0'; // 123.0 => '123.0'
+    return s;
+}
 /*
-  Nukata Lisp 1.93.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.07)
+  Nukata Lisp 2.00.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.09)
   $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
 */
 /// <reference path="arith.ts" />
@@ -404,8 +413,7 @@ const EndOfFile = { toString: () => "EOF" };
 class Interp {
     constructor() {
         // Table of the global values of symbols
-        // XXX Cannot use Sym type for keys; use Sym#name: string instead.
-        this.globals = {};
+        this.globals = new Map();
         this.def("car", 1, (a) => (a[0] === null) ? null : a[0].car);
         this.def("cdr", 1, (a) => (a[0] === null) ? null : a[0].cdr);
         this.def("cons", 2, (a) => new Cell(a[0], a[1]));
@@ -465,11 +473,11 @@ class Interp {
             write("\n");
             return true;
         });
-        const gensymCounter = "*gensym-counter*";
-        this.globals[gensymCounter] = ONE;
+        const gensymCounter = newSym("*gensym-counter*");
+        this.globals.set(gensymCounter, ONE);
         this.def("gensym", 0, (a) => {
-            let i = this.globals[gensymCounter];
-            this.globals[gensymCounter] = i + ONE;
+            let i = this.globals.get(gensymCounter);
+            this.globals.set(gensymCounter, i + ONE);
             return new Sym("G" + i); // an uninterned symbol
         });
         this.def("make-symbol", 1, (a) => new Sym(a[0]));
@@ -479,17 +487,17 @@ class Interp {
         this.def("exit", 1, (a) => exit(Number(a[0])));
         this.def("dump", 0, (a) => {
             let s = null;
-            for (let x in this.globals)
+            for (let x of this.globals.keys())
                 s = new Cell(x, s);
             return s;
         });
-        this.globals["*version*"] = // named after Tōkai-dō Mikawa-koku
-            new Cell(1.930, // Nukata-gun (東海道 三河国 額田郡)
-            new Cell("TypeScript", new Cell("Nukata Lisp", null)));
+        // named after Tōkai-dō Mikawa-koku Nukata-gun (東海道 三河国 額田郡)
+        this.globals.set(newSym("*version*"), new Cell(2.000, new Cell("TypeScript", new Cell("Nukata Lisp", null))));
     }
     // Define a built-in function by giving a name, a carity, and a body.
     def(name, carity, body) {
-        this.globals[name] = new BuiltInFunc(name, carity, body);
+        let sym = newSym(name);
+        this.globals.set(sym, new BuiltInFunc(name, carity, body));
     }
     // Evaluate a Lisp expression in an environment.
     eval(x, env) {
@@ -499,7 +507,7 @@ class Interp {
                     return x.getValue(env);
                 }
                 else if (x instanceof Sym) {
-                    let value = this.globals[x.name];
+                    let value = this.globals.get(x);
                     if (value === undefined)
                         throw new EvalException("void variable", x);
                     return value;
@@ -540,7 +548,7 @@ class Interp {
                     else { // Application of a function
                         // Expand fn = eval(fn, env) here on Sym for speed.
                         if (fn instanceof Sym) {
-                            fn = this.globals[fn.name];
+                            fn = this.globals.get(fn);
                             if (fn === undefined)
                                 throw new EvalException("undefined", x.car);
                         }
@@ -622,7 +630,7 @@ class Interp {
             if (lval instanceof Arg)
                 lval.setValue(result, env);
             else if (lval instanceof Sym && !(lval instanceof Keyword))
-                this.globals[lval.name] = result;
+                this.globals.set(lval, result);
             else
                 throw new NotVariableException(lval);
         }
@@ -632,7 +640,7 @@ class Interp {
     compile(arg, env, make) {
         if (arg === null)
             throw new EvalException("arglist and body expected", arg);
-        let table = {};
+        let table = new Map();
         let [hasRest, arity] = makeArgTable(arg.car, table);
         let body = cdrCell(arg);
         body = scanForArgs(body, table);
@@ -658,7 +666,7 @@ class Interp {
                     throw new EvalException("bad quasiquote", j);
                 default:
                     if (k instanceof Sym)
-                        k = this.globals[k.name];
+                        k = this.globals.get(k);
                     if (k instanceof Macro) {
                         let d = cdrCell(j);
                         let z = k.expandWith(this, d);
@@ -722,9 +730,9 @@ function makeArgTable(arg, table) {
                 sym = j.symbol;
             else
                 throw new NotVariableException(j);
-            if (sym.name in table)
+            if (table.has(sym))
                 throw new EvalException("duplicated argument name", j);
-            table[sym.name] = new Arg(0, offset, sym);
+            table.set(sym, new Arg(0, offset, sym));
             offset++;
         }
         return [hasRest, offset];
@@ -737,11 +745,11 @@ function makeArgTable(arg, table) {
 // And scan 'j' for free Args not in 'table' and promote their levels.
 function scanForArgs(j, table) {
     if (j instanceof Sym) {
-        let k = table[j.name];
+        let k = table.get(j);
         return (k === undefined) ? j : k;
     }
     else if (j instanceof Arg) {
-        let k = table[j.symbol.name];
+        let k = table.get(j.symbol);
         return (k === undefined) ?
             new Arg(j.level + 1, j.offset, j.symbol) : k;
     }
@@ -1089,18 +1097,15 @@ function str(x, quoteString = true, count, printed) {
         bf.push('"');
         return bf.join("");
     }
-    else if (typeof x === "number") { // 123.0 => "123.0"
-        let s = x + "";
-        if (Number.isInteger(x) && !s.includes("e"))
-            return s + ".0";
-        return s;
-    }
     else if (x instanceof Array) {
         let s = x.map((e) => str(e, true, count, printed)).join(", ");
         return "[" + s + "]";
     }
     else if (x instanceof Sym) {
         return (x.isInterned) ? x.name : "#:" + x;
+    }
+    else if (isNumeric(x)) {
+        return convertToString(x);
     }
     else {
         return x + "";

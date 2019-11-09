@@ -28,22 +28,55 @@ Examples are found in
 
 ## How to run
 
-Use TypeScript 3.7 or later to compile [`lisp.ts`](lisp.ts) into `lisp.js`.
+Compile [`lisp.ts`](lisp.ts) with TypeScript 3.7 or later to get `lisp.js`, or just
+use [`examples/lisp.js`](examples/lisp.js), which I provided in the same way.
 
 ```
+$ tsc --version
+Version 3.7.2
 $ tsc -t ESNext --outFile list.js lisp.ts
+```
+
+Run `lis.js` with Node.js.
+
+```
+$ node --version
+v12.12.0
 $ node lisp.js
 > (+ 5 6)
 11
+> `(a b ,(cons 'c 'd))
+(a b (c . d))
+> (list
+  1
+  2
+  3)
+(1 2 3)
+> (defun fact (n)
+     (if (= n 0)
+         1
+       (* n
+          (fact (- n 1)) )))
+fact
+> (fact 100)
+93326215443944152681699238856266700490715968264381621468592963895217599993229915
+608941463976156518286253697920827223758251185210916864000000000000000000000000
+> (dump)
+(fact dotimes dolist while nconc last nreverse _nreverse assoc assq member memq
+listp or mapcar and append _append letrec let when if equal /= <= >= > setcdr se
+tcar null rem = identity print consp not cdddr cddar cdadr cdaar caddr cadar caa
+dr caaar cddr cdar cadr caar defun defmacro *version* dump exit apply symbol-nam
+e intern make-symbol gensym *gensym-counter* terpri princ prin1 truncate / - * +
+mod % < eql numberp stringp length rplacd rplaca list eq atom cons cdr car)
 > *version*
-(1.93 "TypeScript" "Nukata Lisp")
+(2.0 "TypeScript" "Nukata Lisp")
 > (exit 0)
 $
 ```
 
-You can give `lisp.js` a file name of your Lisp script.
-If you put a "`-`" after the file name, it will
-begin an interactive session after running the file.
+You can run it with Lisp script(s).
+If you put a "`-`" after the scripts, it will
+begin an interactive session after running the scripts.
 
 ```
 $ cat examples/fib.l
