@@ -1,195 +1,149 @@
-// A little arithmetic in TypeScript 3.7 by SUZUKI Hisao (R01.08.04/R01.11.09)
-//  derived from arith.ts at github.com/nukata/little-scheme-in-typescript
-'use strict';
-// A Number value is treated as an inexact number.
-// A BigInt value is treated as an exact number.
-// Any intergers should be represented by BigInt if possible.
-// If the runtime does not have BigInt, arithmetic will be done with Number.
-const ZERO = (typeof BigInt === 'undefined') ? 0 : BigInt(0);
-const ONE = (typeof BigInt === 'undefined') ? 1 : BigInt(1);
-// Is x a Numeric?
+// deno-fmt-ignore-file
+// deno-lint-ignore-file
+// This code was bundled using `deno bundle` and it's not recommended to edit it manually
+
+const ZERO = typeof BigInt === 'undefined' ? 0 : BigInt(0);
+const ONE = typeof BigInt === 'undefined' ? 1 : BigInt(1);
 function isNumeric(x) {
-    let t = typeof x;
+    const t = typeof x;
     return t === 'number' || t === 'bigint';
 }
-// x + y
 function add(x, y) {
     if (typeof x === 'number') {
-        if (typeof y === 'number')
-            return x + y;
-        else
-            return x + Number(y);
-    }
-    else {
-        if (typeof y === 'number')
-            return Number(x) + y;
-        else
-            return x + y;
+        if (typeof y === 'number') return x + y;
+        else return x + Number(y);
+    } else {
+        if (typeof y === 'number') return Number(x) + y;
+        else return x + y;
     }
 }
-// x - y
 function subtract(x, y) {
     if (typeof x === 'number') {
-        if (typeof y === 'number')
-            return x - y;
-        else
-            return x - Number(y);
-    }
-    else {
-        if (typeof y === 'number')
-            return Number(x) - y;
-        else
-            return x - y;
+        if (typeof y === 'number') return x - y;
+        else return x - Number(y);
+    } else {
+        if (typeof y === 'number') return Number(x) - y;
+        else return x - y;
     }
 }
-// x * y
 function multiply(x, y) {
     if (typeof x === 'number') {
-        if (typeof y === 'number')
-            return x * y;
-        else
-            return x * Number(y);
-    }
-    else {
-        if (typeof y === 'number')
-            return Number(x) * y;
-        else
-            return x * y;
+        if (typeof y === 'number') return x * y;
+        else return x * Number(y);
+    } else {
+        if (typeof y === 'number') return Number(x) * y;
+        else return x * y;
     }
 }
-// x / y (rounded quotient)
 function divide(x, y) {
     return Number(x) / Number(y);
 }
-// Calculate the quotient of x and y.
 function quotient(x, y) {
     if (typeof x === 'number' || typeof y === 'number') {
-        let q = Math.trunc(Number(x) / Number(y));
-        if (typeof BigInt === 'undefined')
-            return q;
-        else
-            return BigInt(q);
-    }
-    else {
+        const q = Math.trunc(Number(x) / Number(y));
+        if (typeof BigInt === 'undefined') return q;
+        else return BigInt(q);
+    } else {
         return x / y;
     }
 }
-// Calculate the remainder of the quotient of x and y.
 function remainder(x, y) {
-    if (typeof x === 'number' || typeof y === 'number')
-        return Number(x) % Number(y);
-    else
-        return x % y;
+    if (typeof x === 'number' || typeof y === 'number') return Number(x) % Number(y);
+    else return x % y;
 }
-// Compare x and y.
-// -1, 0 or 1 as x is less than, equal to, or greater than y.
 function compare(x, y) {
     if (typeof x === 'number') {
-        if (typeof y === 'number')
-            return Math.sign(x - y);
-        else
-            return Math.sign(x - Number(y));
-    }
-    else {
-        if (typeof y === 'number')
-            return Math.sign(Number(x) - y);
-        else
-            return (x < y) ? -1 : (y < x) ? 1 : 0;
+        if (typeof y === 'number') return Math.sign(x - y);
+        else return Math.sign(x - Number(y));
+    } else {
+        if (typeof y === 'number') return Math.sign(Number(x) - y);
+        else return x < y ? -1 : y < x ? 1 : 0;
     }
 }
-// Try to parse the token as a Numeric or null.
 function tryToParse(token) {
     try {
         return BigInt(token);
-    }
-    catch (ex) {
+    } catch (_ex) {
         const n = Number(token);
-        if (isNaN(n))
-            return null;
+        if (isNaN(n)) return null;
         return n;
     }
 }
-// Convert x to string.
 function convertToString(x) {
-    let s = x + '';
-    if (typeof BigInt !== 'undefined')
-        if (typeof x === 'number')
-            if (Number.isInteger(x) && !s.includes('e'))
-                return s + '.0'; // 123.0 => '123.0'
+    const s = x + '';
+    if (typeof BigInt !== 'undefined') {
+        if (typeof x === 'number') {
+            if (Number.isInteger(x) && !s.includes('e')) return s + '.0';
+        }
+    }
     return s;
 }
-/*
-  Nukata Lisp 2.00.0 in TypeScript 3.7 by SUZUKI Hisao (H28.02.08/R01.11.09)
-  $ tsc -t ESNext --outFile lisp.js lisp.ts && node lisp.js
-*/
-/// <reference path="arith.ts" />
-// An inefficient substitution of assert statement in Dart
 function assert(x, message) {
-    if (!x)
-        throw new Error("Assertion Failure: " + (message || ""));
+    if (!x) throw new Error("Assertion Failure: " + (message || ""));
 }
-var write; // Output string s (a new line on \n char).
-var exit; // Terminate the process with exit code n.
-//----------------------------------------------------------------------
-// Lisp cons cell
+let readLine;
+let write;
+let exit;
 class Cell {
-    constructor(car, cdr) {
+    constructor(car, cdr){
         this.car = car;
         this.cdr = cdr;
     }
-    toString() { return "(" + this.car + " . " + this.cdr + ")"; }
-    // Length as a list
-    get length() { return foldl(0, this, (i, e) => i + 1); }
+    toString() {
+        return "(" + this.car + " . " + this.cdr + ")";
+    }
+    get length() {
+        return foldl(0, this, (i, _)=>i + 1
+        );
+    }
+    car;
+    cdr;
 }
-// foldl(x, (a b c), fn) => fn(fn(fn(x, a), b), c)
 function foldl(x, j, fn) {
-    while (j !== null) {
+    while(j !== null){
         x = fn(x, j.car);
         j = j.cdr;
     }
     return x;
 }
-// mapcar((a b c), fn) => (fn(a) fn(b) fn(c))
 function mapcar(j, fn) {
-    if (j === null)
-        return null;
-    let a = fn(j.car);
+    if (j === null) return null;
+    const a = fn(j.car);
     let d = j.cdr;
-    if (d instanceof Cell)
-        d = mapcar(d, fn);
-    if (Object.is(j.car, a) && Object.is(j.cdr, d))
-        return j;
+    if (d instanceof Cell) d = mapcar(d, fn);
+    if (Object.is(j.car, a) && Object.is(j.cdr, d)) return j;
     return new Cell(a, d);
 }
-// Lisp symbol
 class Sym {
-    // Construct an uninterned symbol.
-    constructor(name) {
+    constructor(name){
         this.name = name;
     }
-    toString() { return this.name; }
-    // Is it interned?
-    get isInterned() { return symTable[this.name] === this; }
+    toString() {
+        return this.name;
+    }
+    get isInterned() {
+        return symTable[this.name] === this;
+    }
+    name;
 }
-// Expression keyword
 class Keyword extends Sym {
-    constructor(name) {
+    constructor(name){
         super(name);
     }
 }
-// The table of interned symbols
 const symTable = {};
-// Construct an interned symbol; construct a Keyword if isKeyword holds.
 function newSym(name, isKeyword = false) {
     let result = symTable[name];
-    assert((result === undefined || !isKeyword), name);
+    assert(result === undefined || !isKeyword, name);
     if (result === undefined) {
         result = isKeyword ? new Keyword(name) : new Sym(name);
         symTable[name] = result;
     }
     return result;
 }
-function newKeyword(name) { return newSym(name, true); }
+function newKeyword(name) {
+    return newSym(name, true);
+}
 const backQuoteSym = newSym("`");
 const commaAtSym = newSym(",@");
 const commaSym = newSym(",");
@@ -210,89 +164,78 @@ const prognSym = newKeyword("progn");
 const quasiquoteSym = newKeyword("quasiquote");
 const quoteSym = newKeyword("quote");
 const setqSym = newKeyword("setq");
-//----------------------------------------------------------------------
-// Get cdr of list x as a Cell or null.
 function cdrCell(x) {
-    let k = x.cdr;
-    if (k instanceof Cell)
-        return k;
-    else if (k === null)
-        return null;
-    else
-        throw new EvalException("proper list expected", x);
+    const k = x.cdr;
+    if (k instanceof Cell) return k;
+    else if (k === null) return null;
+    else throw new EvalException("proper list expected", x);
 }
-// Common base class of Lisp functions
 class Func {
-    // carity is a number of arguments, made negative if the func has &rest.
-    constructor(carity) {
+    constructor(carity){
         this.carity = carity;
     }
     get arity() {
-        return (this.carity < 0) ? -this.carity : this.carity;
+        return this.carity < 0 ? -this.carity : this.carity;
     }
     get hasRest() {
-        return (this.carity < 0);
+        return this.carity < 0;
     }
     get fixedArgs() {
-        return (this.carity < 0) ? -this.carity - 1 : this.carity;
+        return this.carity < 0 ? -this.carity - 1 : this.carity;
     }
-    // Make a call-frame from a list of actual arguments.
     makeFrame(arg) {
-        let frame = new Array(this.arity);
-        let n = this.fixedArgs;
+        const frame = new Array(this.arity);
+        const n = this.fixedArgs;
         let i = 0;
-        for (; i < n && arg !== null; i++) { // Set the list of fiexed args.
+        for(; i < n && arg !== null; i++){
             frame[i] = arg.car;
             arg = cdrCell(arg);
         }
-        if (i !== n || (arg !== null && !this.hasRest))
-            throw new EvalException("arity not matched", this);
-        if (this.hasRest)
-            frame[n] = arg;
+        if (i !== n || arg !== null && !this.hasRest) throw new EvalException("arity not matched", this);
+        if (this.hasRest) frame[n] = arg;
         return frame;
     }
-    // Evaluate each expression of a frame.
     evalFrame(frame, interp, env) {
-        let n = this.fixedArgs;
-        for (let i = 0; i < n; i++)
-            frame[i] = interp.eval(frame[i], env);
+        const n = this.fixedArgs;
+        for(let i = 0; i < n; i++)frame[i] = interp.eval(frame[i], env);
         if (this.hasRest && frame[n] instanceof Cell) {
             let z = null;
             let y = null;
-            for (let j = frame[n]; j != null; j = cdrCell(j)) {
-                let e = interp.eval(j.car, env);
-                let x = new Cell(e, null);
-                if (z === null)
+            for(let j = frame[n]; j !== null; j = cdrCell(j)){
+                const e = interp.eval(j.car, env);
+                const x = new Cell(e, null);
+                if (z === null) {
                     z = x;
-                else
+                } else {
+                    assert(y !== null);
                     y.cdr = x;
+                }
                 y = x;
             }
             frame[n] = z;
         }
     }
+    carity;
 }
-// Common base class of functions which are defined with Lisp expressions
 class DefinedFunc extends Func {
-    // body is a Lisp list as the function body.
-    constructor(carity, body) {
+    constructor(carity, body){
         super(carity);
         this.body = body;
     }
+    body;
 }
-// Compiled macro expression
 class Macro extends DefinedFunc {
-    constructor(carity, body) {
+    constructor(carity, body){
         super(carity, body);
     }
-    toString() { return `#<macro:${this.carity}:${str(this.body)}>`; }
-    // Expand the macro with a list of actual arguments.
+    toString() {
+        return `#<macro:${this.carity}:${str(this.body)}>`;
+    }
     expandWith(interp, arg) {
-        let frame = this.makeFrame(arg);
-        let env = new Cell(frame, null);
+        const frame = this.makeFrame(arg);
+        const env = new Cell(frame, null);
         let x = null;
-        for (let j = this.body; j != null; j = cdrCell(j))
-            x = interp.eval(j.car, env);
+        for(let j = this.body; j !== null; j = cdrCell(j))x = interp.eval(j.car, env);
         return x;
     }
     static make(carity, body, env) {
@@ -300,21 +243,20 @@ class Macro extends DefinedFunc {
         return new Macro(carity, body);
     }
 }
-// Compiled lambda expression (within another function)
 class Lambda extends DefinedFunc {
-    constructor(carity, body) {
+    constructor(carity, body){
         super(carity, body);
     }
-    toString() { return `#<lambda:${this.carity}:${str(this.body)}>`; }
+    toString() {
+        return `#<lambda:${this.carity}:${str(this.body)}>`;
+    }
     static make(carity, body, env) {
         assert(env === null);
         return new Lambda(carity, body);
     }
 }
-// Compiled lambda expression (Closure with environment)
 class Closure extends DefinedFunc {
-    // env is the environment of the closure.
-    constructor(carity, body, env) {
+    constructor(carity, body, env){
         super(carity, body);
         this.env = env;
     }
@@ -324,43 +266,40 @@ class Closure extends DefinedFunc {
     toString() {
         return `#<closure:${this.carity}:${str(this.env)}:${str(this.body)}>`;
     }
-    // Make a new environment from a list of actual arguments.
     makeEnv(interp, arg, interpEnv) {
-        let frame = this.makeFrame(arg);
+        const frame = this.makeFrame(arg);
         this.evalFrame(frame, interp, interpEnv);
-        return new Cell(frame, this.env); // Prepend the frame to the env.
+        return new Cell(frame, this.env);
     }
     static make(carity, body, env) {
         return new Closure(carity, body, env);
     }
+    env;
 }
-// Built-in function
 class BuiltInFunc extends Func {
-    // name is the function name; body is the function body.
-    constructor(name, carity, body) {
+    constructor(name, carity, body){
         super(carity);
         this.name = name;
         this.body = body;
     }
-    toString() { return "#<" + this.name + ":" + this.carity + ">"; }
-    // Invoke the built-in function with a list of actual arguments.
+    toString() {
+        return "#<" + this.name + ":" + this.carity + ">";
+    }
     evalWith(interp, arg, interpEnv) {
-        let frame = this.makeFrame(arg);
+        const frame = this.makeFrame(arg);
         this.evalFrame(frame, interp, interpEnv);
         try {
             return this.body(frame);
-        }
-        catch (ex) {
-            if (ex instanceof EvalException)
-                throw ex;
-            else
-                throw new EvalException(ex + " -- " + this.name, frame);
+        } catch (ex) {
+            if (ex instanceof EvalException) throw ex;
+            else throw new EvalException(ex + " -- " + this.name, frame);
         }
     }
+    name;
+    body;
 }
-// Bound variable in a compiled lambda/macro expression
 class Arg {
-    constructor(level, offset, symbol) {
+    constructor(level, offset, symbol){
         this.level = level;
         this.offset = offset;
         this.symbol = symbol;
@@ -368,158 +307,169 @@ class Arg {
     toString() {
         return "#" + this.level + ":" + this.offset + ":" + this.symbol;
     }
-    // Set a value x to the location corresponding to the variable in env.
     setValue(x, env) {
-        for (let i = 0; i < this.level; i++)
-            env = env.cdr;
+        for(let i = 0; i < this.level; i++)env = env.cdr;
         env.car[this.offset] = x;
     }
-    // Get a value from the location corresponding to the variable in env.
     getValue(env) {
-        for (let i = 0; i < this.level; i++)
-            env = env.cdr;
+        for(let i = 0; i < this.level; i++)env = env.cdr;
         return env.car[this.offset];
     }
+    level;
+    offset;
+    symbol;
 }
-// Exception in evaluation
 class EvalException extends Error {
-    constructor(msg, x, quoteString = true) {
+    trace = [];
+    constructor(msg, x, quoteString = true){
         super(msg + ": " + str(x, quoteString));
-        this.trace = [];
     }
     toString() {
         let s = "EvalException: " + this.message;
-        for (let line of this.trace)
-            s += "\n\t" + line;
+        for (const line of this.trace)s += "\n\t" + line;
         return s;
     }
 }
-// Exception which indicates an absence of a variable
 class NotVariableException extends EvalException {
-    constructor(x) {
+    constructor(x){
         super("variable expected", x);
     }
 }
-// Exception thrown when something does not have an expected format
 class FormatException extends Error {
-    constructor(msg) {
+    constructor(msg){
         super(msg);
     }
 }
-// Singleton for end-of-file
-const EndOfFile = { toString: () => "EOF" };
-//----------------------------------------------------------------------
-// Core of the interpreter
+const EndOfFile = {
+    toString: ()=>"EOF"
+};
 class Interp {
-    constructor() {
-        // Table of the global values of symbols
-        this.globals = new Map();
-        this.def("car", 1, (a) => (a[0] === null) ? null : a[0].car);
-        this.def("cdr", 1, (a) => (a[0] === null) ? null : a[0].cdr);
-        this.def("cons", 2, (a) => new Cell(a[0], a[1]));
-        this.def("atom", 1, (a) => (a[0] instanceof Cell) ? null : true);
-        this.def("eq", 2, (a) => Object.is(a[0], a[1]) ? true : null);
-        this.def("list", -1, (a) => a[0]);
-        this.def("rplaca", 2, (a) => { a[0].car = a[1]; return a[1]; });
-        this.def("rplacd", 2, (a) => { a[0].cdr = a[1]; return a[1]; });
-        this.def("length", 1, (a) => (a[0] === null ? 0 : quotient(a[0].length, 1)));
-        this.def("stringp", 1, (a) => (typeof a[0] === "string") ? true : null);
-        this.def("numberp", 1, (a) => isNumeric(a[0]) ? true : null);
-        this.def("eql", 2, (a) => {
-            let x = a[0];
-            let y = a[1];
-            return (x === y) ? true :
-                (isNumeric(x) && isNumeric(y) && compare(x, y) === 0) ? true :
-                    null;
+    globals = new Map();
+    constructor(){
+        this.def("car", 1, (a)=>a[0] === null ? null : a[0].car
+        );
+        this.def("cdr", 1, (a)=>a[0] === null ? null : a[0].cdr
+        );
+        this.def("cons", 2, (a)=>new Cell(a[0], a[1])
+        );
+        this.def("atom", 1, (a)=>a[0] instanceof Cell ? null : true
+        );
+        this.def("eq", 2, (a)=>Object.is(a[0], a[1]) ? true : null
+        );
+        this.def("list", -1, (a)=>a[0]
+        );
+        this.def("rplaca", 2, (a)=>{
+            a[0].car = a[1];
+            return a[1];
         });
-        this.def("<", 2, (a) => (compare(a[0], a[1]) < 0) ? true : null);
-        this.def("%", 2, (a) => remainder(a[0], a[1]));
-        this.def("mod", 2, (a) => {
-            let x = a[0];
-            let y = a[1];
-            let q = remainder(x, y);
-            return (compare(multiply(x, y), ZERO) < 0) ? add(q, y) : q;
+        this.def("rplacd", 2, (a)=>{
+            a[0].cdr = a[1];
+            return a[1];
         });
-        this.def("+", -1, (a) => foldl(ZERO, a[0], (i, j) => add(i, j)));
-        this.def("*", -1, (a) => foldl(ONE, a[0], (i, j) => multiply(i, j)));
-        this.def("-", -2, (a) => {
-            let x = a[0];
-            let y = a[1];
-            return (y == null) ? -x : foldl(x, y, (i, j) => subtract(i, j));
+        this.def("length", 1, (a)=>a[0] === null ? 0 : quotient(a[0].length, 1)
+        );
+        this.def("stringp", 1, (a)=>typeof a[0] === "string" ? true : null
+        );
+        this.def("numberp", 1, (a)=>isNumeric(a[0]) ? true : null
+        );
+        this.def("eql", 2, (a)=>{
+            const x = a[0];
+            const y = a[1];
+            return x === y ? true : isNumeric(x) && isNumeric(y) && compare(x, y) === 0 ? true : null;
         });
-        this.def("/", -3, (a) => foldl(divide(a[0], a[1]), a[2], (i, j) => divide(i, j)));
-        this.def("truncate", -2, (a) => {
-            let x = a[0];
-            let y = a[1];
+        this.def("<", 2, (a)=>compare(a[0], a[1]) < 0 ? true : null
+        );
+        this.def("%", 2, (a)=>remainder(a[0], a[1])
+        );
+        this.def("mod", 2, (a)=>{
+            const x = a[0];
+            const y = a[1];
+            const q = remainder(x, y);
+            return compare(multiply(x, y), ZERO) < 0 ? add(q, y) : q;
+        });
+        this.def("+", -1, (a)=>foldl(ZERO, a[0], (i, j)=>add(i, j)
+            )
+        );
+        this.def("*", -1, (a)=>foldl(ONE, a[0], (i, j)=>multiply(i, j)
+            )
+        );
+        this.def("-", -2, (a)=>{
+            const x = a[0];
+            const y = a[1];
+            return y == null ? -x : foldl(x, y, (i, j)=>subtract(i, j)
+            );
+        });
+        this.def("/", -3, (a)=>foldl(divide(a[0], a[1]), a[2], (i, j)=>divide(i, j)
+            )
+        );
+        this.def("truncate", -2, (a)=>{
+            const x = a[0];
+            const y = a[1];
             if (y === null) {
                 return quotient(x, ONE);
-            }
-            else if (y.cdr === null) {
+            } else if (y.cdr === null) {
                 return quotient(x, y.car);
-            }
-            else {
+            } else {
                 throw "one or two arguments expected";
             }
         });
-        this.def("prin1", 1, (a) => {
+        this.def("prin1", 1, (a)=>{
             write(str(a[0], true));
             return a[0];
         });
-        this.def("princ", 1, (a) => {
+        this.def("princ", 1, (a)=>{
             write(str(a[0], false));
             return a[0];
         });
-        this.def("terpri", 0, (a) => {
+        this.def("terpri", 0, (_a)=>{
             write("\n");
             return true;
         });
         const gensymCounter = newSym("*gensym-counter*");
         this.globals.set(gensymCounter, ONE);
-        this.def("gensym", 0, (a) => {
-            let i = this.globals.get(gensymCounter);
-            this.globals.set(gensymCounter, i + ONE);
-            return new Sym("G" + i); // an uninterned symbol
+        this.def("gensym", 0, (_a)=>{
+            const i = this.globals.get(gensymCounter);
+            this.globals.set(gensymCounter, add(i, ONE));
+            return new Sym("G" + i);
         });
-        this.def("make-symbol", 1, (a) => new Sym(a[0]));
-        this.def("intern", 1, (a) => newSym(a[0]));
-        this.def("symbol-name", 1, (a) => a[0].name);
-        this.def("apply", 2, (a) => this.eval(new Cell(a[0], mapcar(a[1], qqQuote)), null));
-        this.def("exit", 1, (a) => exit(Number(a[0])));
-        this.def("dump", 0, (a) => {
+        this.def("make-symbol", 1, (a)=>new Sym(a[0])
+        );
+        this.def("intern", 1, (a)=>newSym(a[0])
+        );
+        this.def("symbol-name", 1, (a)=>a[0].name
+        );
+        this.def("apply", 2, (a)=>this.eval(new Cell(a[0], mapcar(a[1], qqQuote)), null)
+        );
+        this.def("exit", 1, (a)=>exit(Number(a[0]))
+        );
+        this.def("dump", 0, (_a)=>{
             let s = null;
-            for (let x of this.globals.keys())
-                s = new Cell(x, s);
+            for (const x of this.globals.keys())s = new Cell(x, s);
             return s;
         });
-        // named after Tōkai-dō Mikawa-koku Nukata-gun (東海道 三河国 額田郡)
-        this.globals.set(newSym("*version*"), new Cell(2.000, new Cell("TypeScript", new Cell("Nukata Lisp", null))));
+        this.globals.set(newSym("*version*"), new Cell(2.1, new Cell("TypeScript", new Cell("Nukata Lisp", null))));
     }
-    // Define a built-in function by giving a name, a carity, and a body.
     def(name, carity, body) {
-        let sym = newSym(name);
+        const sym = newSym(name);
         this.globals.set(sym, new BuiltInFunc(name, carity, body));
     }
-    // Evaluate a Lisp expression in an environment.
     eval(x, env) {
         try {
-            for (;;) {
+            for(;;){
                 if (x instanceof Arg) {
+                    assert(env !== null);
                     return x.getValue(env);
-                }
-                else if (x instanceof Sym) {
-                    let value = this.globals.get(x);
-                    if (value === undefined)
-                        throw new EvalException("void variable", x);
+                } else if (x instanceof Sym) {
+                    const value = this.globals.get(x);
+                    if (value === undefined) throw new EvalException("void variable", x);
                     return value;
-                }
-                else if (x instanceof Cell) {
+                } else if (x instanceof Cell) {
                     let fn = x.car;
-                    let arg = cdrCell(x);
+                    const arg = cdrCell(x);
                     if (fn instanceof Keyword) {
-                        switch (fn) {
+                        switch(fn){
                             case quoteSym:
-                                if (arg !== null && arg.cdr === null)
-                                    return arg.car;
+                                if (arg !== null && arg.cdr === null) return arg.car;
                                 throw new EvalException("bad quote", x);
                             case prognSym:
                                 x = this.evalProgN(arg, env);
@@ -532,8 +482,7 @@ class Interp {
                             case lambdaSym:
                                 return this.compile(arg, env, Closure.make);
                             case macroSym:
-                                if (env !== null)
-                                    throw new EvalException("nested macro", x);
+                                if (env !== null) throw new EvalException("nested macro", x);
                                 return this.compile(arg, null, Macro.make);
                             case quasiquoteSym:
                                 if (arg !== null && arg.cdr === null) {
@@ -544,422 +493,348 @@ class Interp {
                             default:
                                 throw new EvalException("bad keyword", fn);
                         }
-                    }
-                    else { // Application of a function
-                        // Expand fn = eval(fn, env) here on Sym for speed.
+                    } else {
                         if (fn instanceof Sym) {
                             fn = this.globals.get(fn);
-                            if (fn === undefined)
-                                throw new EvalException("undefined", x.car);
-                        }
-                        else {
+                            if (fn === undefined) throw new EvalException("undefined", x.car);
+                        } else {
                             fn = this.eval(fn, env);
                         }
                         if (fn instanceof Closure) {
                             env = fn.makeEnv(this, arg, env);
                             x = this.evalProgN(fn.body, env);
-                        }
-                        else if (fn instanceof Macro) {
+                        } else if (fn instanceof Macro) {
                             x = fn.expandWith(this, arg);
-                        }
-                        else if (fn instanceof BuiltInFunc) {
+                        } else if (fn instanceof BuiltInFunc) {
                             return fn.evalWith(this, arg, env);
-                        }
-                        else {
+                        } else {
                             throw new EvalException("not applicable", fn);
                         }
                     }
-                }
-                else if (x instanceof Lambda) {
+                } else if (x instanceof Lambda) {
                     return Closure.makeFrom(x, env);
-                }
-                else {
-                    return x; // numbers, strings, null etc.
+                } else {
+                    return x;
                 }
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             if (ex instanceof EvalException) {
-                if (ex.trace.length < 10)
-                    ex.trace.push(str(x));
+                if (ex.trace.length < 10) ex.trace.push(str(x));
             }
             throw ex;
         }
     }
-    // (progn E1 E2 .. En) => Evaluate E1, E2, .. except for En and return it.
     evalProgN(j, env) {
-        if (j === null)
-            return null;
-        for (;;) {
-            let x = j.car;
+        if (j === null) return null;
+        for(;;){
+            const x = j.car;
             j = cdrCell(j);
-            if (j === null)
-                return x; // The tail exp will be evaluated at the caller.
+            if (j === null) return x;
             this.eval(x, env);
         }
     }
-    // Evaluate a conditional expression and return the selection unevaluated.
     evalCond(j, env) {
-        for (; j !== null; j = cdrCell(j)) {
-            let clause = j.car;
+        for(; j !== null; j = cdrCell(j)){
+            const clause = j.car;
             if (clause instanceof Cell) {
-                let result = this.eval(clause.car, env);
-                if (result !== null) { // If the condition holds
-                    let body = cdrCell(clause);
-                    if (body === null)
-                        return qqQuote(result);
-                    else
-                        return this.evalProgN(body, env);
+                const result = this.eval(clause.car, env);
+                if (result !== null) {
+                    const body = cdrCell(clause);
+                    if (body === null) return qqQuote(result);
+                    else return this.evalProgN(body, env);
                 }
-            }
-            else if (clause !== null) {
+            } else if (clause !== null) {
                 throw new EvalException("cond test expected", clause);
             }
         }
-        return null; // No clause holds.
+        return null;
     }
-    // (setq V1 E1 ..) => Evaluate Ei and assign it to Vi; return the last.
     evalSetQ(j, env) {
         let result = null;
-        for (; j !== null; j = cdrCell(j)) {
-            let lval = j.car;
+        for(; j !== null; j = cdrCell(j)){
+            const lval = j.car;
             j = cdrCell(j);
-            if (j === null)
-                throw new EvalException("right value expected", lval);
+            if (j === null) throw new EvalException("right value expected", lval);
             result = this.eval(j.car, env);
-            if (lval instanceof Arg)
+            if (lval instanceof Arg) {
+                assert(env !== null);
                 lval.setValue(result, env);
-            else if (lval instanceof Sym && !(lval instanceof Keyword))
+            } else if (lval instanceof Sym && !(lval instanceof Keyword)) {
                 this.globals.set(lval, result);
-            else
+            } else {
                 throw new NotVariableException(lval);
+            }
         }
         return result;
     }
-    // Compile a Lisp list (macro ..) or (lambda ..).
     compile(arg, env, make) {
-        if (arg === null)
-            throw new EvalException("arglist and body expected", arg);
-        let table = new Map();
-        let [hasRest, arity] = makeArgTable(arg.car, table);
+        if (arg === null) throw new EvalException("arglist and body expected", arg);
+        const table = new Map();
+        const [hasRest, arity] = makeArgTable(arg.car, table);
         let body = cdrCell(arg);
         body = scanForArgs(body, table);
-        body = this.expandMacros(body, 20); // Expand macros up to 20 nestings
+        body = this.expandMacros(body, 20);
         body = this.compileInners(body);
-        return make((hasRest) ? -arity : arity, body, env);
+        return make(hasRest ? -arity : arity, body, env);
     }
-    // Expand macros and quasi-quotations in an expression.
     expandMacros(j, count) {
         if (count > 0 && j instanceof Cell) {
             let k = j.car;
-            switch (k) {
+            switch(k){
                 case quoteSym:
                 case lambdaSym:
                 case macroSym:
                     return j;
                 case quasiquoteSym:
-                    let d = cdrCell(j);
-                    if (d !== null && d.cdr === null) {
-                        let z = qqExpand(d.car);
-                        return this.expandMacros(z, count);
+                    {
+                        const d = cdrCell(j);
+                        if (d !== null && d.cdr === null) {
+                            const z = qqExpand(d.car);
+                            return this.expandMacros(z, count);
+                        }
+                        throw new EvalException("bad quasiquote", j);
                     }
-                    throw new EvalException("bad quasiquote", j);
                 default:
-                    if (k instanceof Sym)
-                        k = this.globals.get(k);
+                    if (k instanceof Sym) k = this.globals.get(k);
                     if (k instanceof Macro) {
-                        let d = cdrCell(j);
-                        let z = k.expandWith(this, d);
+                        const d = cdrCell(j);
+                        const z = k.expandWith(this, d);
                         return this.expandMacros(z, count - 1);
                     }
-                    return mapcar(j, (x) => this.expandMacros(x, count));
+                    return mapcar(j, (x)=>this.expandMacros(x, count)
+                    );
             }
-        }
-        else {
+        } else {
             return j;
         }
     }
-    // Replace inner lambda expressions with Lambda instances.
     compileInners(j) {
         if (j instanceof Cell) {
-            let k = j.car;
-            switch (k) {
+            const k = j.car;
+            switch(k){
                 case quoteSym:
                     return j;
                 case lambdaSym:
-                    let d = cdrCell(j);
-                    return this.compile(d, null, Lambda.make);
+                    {
+                        const d = cdrCell(j);
+                        return this.compile(d, null, Lambda.make);
+                    }
                 case macroSym:
                     throw new EvalException("nested macro", j);
                 default:
-                    return mapcar(j, (x) => this.compileInners(x));
+                    return mapcar(j, (x)=>this.compileInners(x)
+                    );
             }
-        }
-        else {
+        } else {
             return j;
         }
     }
 }
-//----------------------------------------------------------------------
-// Make an argument table; return a pair of rest-yes/no and the arity.
 function makeArgTable(arg, table) {
     if (arg === null) {
-        return [false, 0];
-    }
-    else if (arg instanceof Cell) {
+        return [
+            false,
+            0
+        ];
+    } else if (arg instanceof Cell) {
         let ag = arg;
-        let offset = 0; // offset value within the call-frame
+        let offset = 0;
         let hasRest = false;
-        for (; ag !== null; ag = cdrCell(ag)) {
+        for(; ag !== null; ag = cdrCell(ag)){
             let j = ag.car;
-            if (hasRest)
-                throw new EvalException("2nd rest", j);
-            if (j === restSym) { // &rest var
+            if (hasRest) throw new EvalException("2nd rest", j);
+            if (j === restSym) {
                 ag = cdrCell(ag);
-                if (ag === null)
-                    throw new NotVariableException(ag);
+                if (ag === null) throw new NotVariableException(ag);
                 j = ag.car;
-                if (j === restSym)
-                    throw new NotVariableException(j);
+                if (j === restSym) throw new NotVariableException(j);
                 hasRest = true;
             }
             let sym;
-            if (j instanceof Sym)
-                sym = j;
-            else if (j instanceof Arg)
-                sym = j.symbol;
-            else
-                throw new NotVariableException(j);
-            if (table.has(sym))
-                throw new EvalException("duplicated argument name", j);
+            if (j instanceof Sym) sym = j;
+            else if (j instanceof Arg) sym = j.symbol;
+            else throw new NotVariableException(j);
+            if (table.has(sym)) throw new EvalException("duplicated argument name", j);
             table.set(sym, new Arg(0, offset, sym));
             offset++;
         }
-        return [hasRest, offset];
-    }
-    else {
+        return [
+            hasRest,
+            offset
+        ];
+    } else {
         throw new EvalException("arglist expected", arg);
     }
 }
-// Scan 'j' for formal arguments in 'table' and replace them with Args.
-// And scan 'j' for free Args not in 'table' and promote their levels.
 function scanForArgs(j, table) {
     if (j instanceof Sym) {
-        let k = table.get(j);
-        return (k === undefined) ? j : k;
-    }
-    else if (j instanceof Arg) {
-        let k = table.get(j.symbol);
-        return (k === undefined) ?
-            new Arg(j.level + 1, j.offset, j.symbol) : k;
-    }
-    else if (j instanceof Cell) {
+        const k = table.get(j);
+        return k === undefined ? j : k;
+    } else if (j instanceof Arg) {
+        const k = table.get(j.symbol);
+        return k === undefined ? new Arg(j.level + 1, j.offset, j.symbol) : k;
+    } else if (j instanceof Cell) {
         if (j.car === quoteSym) {
             return j;
-        }
-        else if (j.car === quasiquoteSym) {
+        } else if (j.car === quasiquoteSym) {
             return new Cell(quasiquoteSym, scanForQQ(j.cdr, table, 0));
+        } else {
+            return mapcar(j, (x)=>scanForArgs(x, table)
+            );
         }
-        else {
-            return mapcar(j, (x) => scanForArgs(x, table));
-        }
-    }
-    else {
+    } else {
         return j;
     }
 }
-// Scan for quasi-quotes and scanForArgs them depending on the nesting level.
 function scanForQQ(j, table, level) {
     if (j instanceof Cell) {
-        let k = j.car;
+        const k = j.car;
         if (k === quasiquoteSym) {
             return new Cell(k, scanForQQ(j.cdr, table, level + 1));
-        }
-        else if (k === unquoteSym || k === unquoteSplicingSym) {
-            let d = (level === 0) ?
-                scanForArgs(j.cdr, table) :
-                scanForQQ(j.cdr, table, level - 1);
-            if (Object.is(d, j.cdr))
-                return j;
+        } else if (k === unquoteSym || k === unquoteSplicingSym) {
+            const d = level === 0 ? scanForArgs(j.cdr, table) : scanForQQ(j.cdr, table, level - 1);
+            if (Object.is(d, j.cdr)) return j;
             return new Cell(k, d);
+        } else {
+            return mapcar(j, (x)=>scanForQQ(x, table, level)
+            );
         }
-        else {
-            return mapcar(j, (x) => scanForQQ(x, table, level));
-        }
-    }
-    else {
+    } else {
         return j;
     }
 }
-//----------------------------------------------------------------------
-// Quasi-Quotation
-// Expand x of any quasi-quotation `x into the equivalent S-expression.
 function qqExpand(x) {
-    return qqExpand0(x, 0); // Begin with the nesting level 0.
+    return qqExpand0(x, 0);
 }
 function qqExpand0(x, level) {
     if (x instanceof Cell) {
-        if (x.car === unquoteSym) { // ,a
-            if (level === 0)
-                return x.cdr.car; // ,a => a
+        if (x.car === unquoteSym) {
+            if (level === 0) return x.cdr.car;
         }
-        let t = qqExpand1(x, level);
+        const t = qqExpand1(x, level);
         if (t.car instanceof Cell && t.cdr === null) {
-            let k = t.car;
-            if (k.car == listSym || k.car === consSym)
-                return k;
+            const k = t.car;
+            if (k.car == listSym || k.car === consSym) return k;
         }
         return new Cell(appendSym, t);
-    }
-    else {
+    } else {
         return qqQuote(x);
     }
 }
-// Quote x so that the result evaluates to x.
 function qqQuote(x) {
-    if (x instanceof Sym || x instanceof Cell)
-        return new Cell(quoteSym, new Cell(x, null));
+    if (x instanceof Sym || x instanceof Cell) return new Cell(quoteSym, new Cell(x, null));
     return x;
 }
-// Expand x of `x so that the result can be used as an argument of append.
-// Example 1: (,a b) => ((list a 'b))
-// Example 2: (,a ,@(cons 2 3)) => ((cons a (cons 2 3)))
 function qqExpand1(x, level) {
     if (x instanceof Cell) {
-        if (x.car === unquoteSym) { // ,a
-            if (level === 0)
-                return x.cdr; // ,a => (a)
+        if (x.car === unquoteSym) {
+            if (level === 0) return x.cdr;
             level--;
-        }
-        else if (x.car === quasiquoteSym) { // `a
+        } else if (x.car === quasiquoteSym) {
             level++;
         }
-        let h = qqExpand2(x.car, level);
-        let t = qqExpand1(x.cdr, level); // !== null
+        const h = qqExpand2(x.car, level);
+        const t = qqExpand1(x.cdr, level);
         if (t.car === null && t.cdr === null) {
             return new Cell(h, null);
-        }
-        else if (h instanceof Cell) {
+        } else if (h instanceof Cell) {
             if (h.car === listSym) {
-                let tcar = t.car;
+                const tcar = t.car;
                 if (tcar instanceof Cell) {
                     if (tcar.car === listSym) {
-                        let hh = qqConcat(h, tcar.cdr);
+                        const hh = qqConcat(h, tcar.cdr);
                         return new Cell(hh, t.cdr);
                     }
                 }
                 if (h.cdr instanceof Cell) {
-                    let hh = qqConsCons(h.cdr, tcar);
+                    const hh = qqConsCons(h.cdr, tcar);
                     return new Cell(hh, t.cdr);
                 }
             }
         }
         return new Cell(h, t);
-    }
-    else {
+    } else {
         return new Cell(qqQuote(x), null);
     }
 }
-// (1 2), (3 4) => (1 2 3 4)
 function qqConcat(x, y) {
-    if (x === null)
-        return y;
+    if (x === null) return y;
     return new Cell(x.car, qqConcat(x.cdr, y));
 }
-// (1 2 3), "a" => (cons 1 (cons 2 (cons 3 "a")))
 function qqConsCons(x, y) {
-    if (x === null)
-        return y;
+    if (x === null) return y;
     return new Cell(consSym, new Cell(x.car, new Cell(qqConsCons(x.cdr, y), null)));
 }
-// Expand x.car (=y) of `x so that the result can be used as an arg of append.
-// Example: ,a => (list a); ,@(foo 1 2) => (foo 1 2); b => (list 'b)
 function qqExpand2(y, level) {
     if (y instanceof Cell) {
-        switch (y.car) {
-            case unquoteSym: // ,a
-                if (level === 0)
-                    return new Cell(listSym, y.cdr); // ,a => (list a)
+        switch(y.car){
+            case unquoteSym:
+                if (level === 0) return new Cell(listSym, y.cdr);
                 level--;
                 break;
-            case unquoteSplicingSym: // ,@a
-                if (level === 0)
-                    return y.cdr.car; // ,@a => a
+            case unquoteSplicingSym:
+                if (level === 0) return y.cdr.car;
                 level--;
                 break;
-            case quasiquoteSym: // `a
+            case quasiquoteSym:
                 level++;
                 break;
         }
     }
     return new Cell(listSym, new Cell(qqExpand0(y, level), null));
 }
-//----------------------------------------------------------------------
-// A list of tokens, which works as a reader of Lisp expressions
 class Reader {
-    constructor() {
-        this.tokens = [];
-        this.lineNo = 1;
-    }
-    // Split a text into a list of tokens and append it to this.tokens.
-    // For "(a \n 1)" it appends ["(", "a", "\n", "1", ")", "\n"] to tokens.
+    token;
+    tokens = [];
+    lineNo = 1;
     push(text) {
-        let tokenPat = /\s+|;.*$|("(\\.?|.)*?"|,@?|[^()'`~"; \t]+|.)/g;
-        for (let line of text.split("\n")) {
-            for (;;) {
-                let result = tokenPat.exec(line);
-                if (result === null)
-                    break;
-                let s = result[1];
-                if (s !== undefined)
-                    this.tokens.push(s);
+        const tokenPat = /\s+|;.*$|("(\\.?|.)*?"|,@?|[^()'`~"; \t]+|.)/g;
+        for (const line of text.split("\n")){
+            for(;;){
+                const result = tokenPat.exec(line);
+                if (result === null) break;
+                const s = result[1];
+                if (s !== undefined) this.tokens.push(s);
             }
             this.tokens.push("\n");
         }
     }
-    // Make this be a clone of the other.
     copyFrom(other) {
         this.tokens = other.tokens.slice();
         this.lineNo = other.lineNo;
     }
-    // Make this have no tokens.
     clear() {
         this.tokens.length = 0;
     }
-    // Does this have no tokens?
     isEmpty() {
-        return this.tokens.every((t) => t === "\n");
+        return this.tokens.every((t)=>t === "\n"
+        );
     }
-    // Read a Lisp expression; throw EndOfFile if this.tokens run out.
     read() {
         try {
             this.readToken();
             return this.parseExpression();
-        }
-        catch (ex) {
-            if (ex === EndOfFile)
-                throw EndOfFile;
-            else if (ex instanceof FormatException)
-                throw new EvalException("syntax error", ex.message + " at " + this.lineNo, false);
-            else
-                throw ex;
+        } catch (ex) {
+            if (ex === EndOfFile) throw EndOfFile;
+            else if (ex instanceof FormatException) throw new EvalException("syntax error", ex.message + " at " + this.lineNo, false);
+            else throw ex;
         }
     }
     parseExpression() {
-        switch (this.token) {
-            case leftParenSym: // (a b c)
+        switch(this.token){
+            case leftParenSym:
                 this.readToken();
                 return this.parseListBody();
-            case singleQuoteSym: // 'a => (quote a)
+            case singleQuoteSym:
                 this.readToken();
                 return new Cell(quoteSym, new Cell(this.parseExpression(), null));
-            case backQuoteSym: // `a => (quasiquote a)
+            case backQuoteSym:
                 this.readToken();
                 return new Cell(quasiquoteSym, new Cell(this.parseExpression(), null));
-            case commaSym: // ,a => (unquote a)
+            case commaSym:
                 this.readToken();
                 return new Cell(unquoteSym, new Cell(this.parseExpression(), null));
-            case commaAtSym: // ,@a => (unquote-splicing a)
+            case commaAtSym:
                 this.readToken();
                 return new Cell(unquoteSplicingSym, new Cell(this.parseExpression(), null));
             case dotSym:
@@ -972,99 +847,90 @@ class Reader {
     parseListBody() {
         if (this.token === rightParenSym) {
             return null;
-        }
-        else {
-            let e1 = this.parseExpression();
+        } else {
+            const e1 = this.parseExpression();
             this.readToken();
             let e2;
-            if (this.token == dotSym) { // (a . b)
+            if (this.token == dotSym) {
                 this.readToken();
                 e2 = this.parseExpression();
                 this.readToken();
-                if (this.token !== rightParenSym)
-                    throw new FormatException('")" expected: ' + this.token);
-            }
-            else {
+                if (this.token !== rightParenSym) throw new FormatException('")" expected: ' + this.token);
+            } else {
                 e2 = this.parseListBody();
             }
             return new Cell(e1, e2);
         }
     }
-    // Read the next token and set it to this.token.
     readToken() {
-        for (;;) {
-            let t = this.tokens.shift();
+        for(;;){
+            const t = this.tokens.shift();
             if (t === undefined) {
                 throw EndOfFile;
-            }
-            else if (t === "\n") {
+            } else if (t === "\n") {
                 this.lineNo += 1;
-            }
-            else {
+            } else if (t === "+" || t === "-") {
+                this.token = newSym(t);
+                return;
+            } else {
                 if (t[0] === '"') {
                     let s = t;
-                    let n = s.length - 1;
-                    if (n < 1 || s[n] !== '"')
-                        throw new FormatException("bad string: " + s);
+                    const n = s.length - 1;
+                    if (n < 1 || s[n] !== '"') throw new FormatException("bad string: " + s);
                     s = s.substring(1, n);
-                    s = s.replace(/\\./g, (m) => {
-                        let val = Reader.escapes[m];
-                        return (val === undefined) ? m : val;
+                    s = s.replace(/\\./g, (m)=>{
+                        const val = Reader.escapes[m];
+                        return val === undefined ? m : val;
                     });
                     this.token = s;
                     return;
                 }
-                let n = tryToParse(t);
-                if (n !== null)
-                    this.token = n;
-                else if (t === "nil")
-                    this.token = null;
-                else if (t === "t")
-                    this.token = true;
-                else
-                    this.token = newSym(t);
+                const n = tryToParse(t);
+                if (n !== null) this.token = n;
+                else if (t === "nil") this.token = null;
+                else if (t === "t") this.token = true;
+                else this.token = newSym(t);
                 return;
             }
         }
     }
+    static escapes = {
+        "\\\\": "\\",
+        '\\"': '"',
+        "\\n": "\n",
+        "\\r": "\r",
+        "\\f": "\f",
+        "\\b": "\b",
+        "\\t": "\t",
+        "\\v": "\v"
+    };
 }
-Reader.escapes = {
-    "\\\\": "\\",
-    '\\"': '"',
-    "\\n": "\n", "\\r": "\r", "\\f": "\f",
-    "\\b": "\b", "\\t": "\t", "\\v": "\v"
-};
-//----------------------------------------------------------------------
-// Mapping from a quote symbol to its string representation
 const quotes = {
     [quoteSym.name]: "'",
     [quasiquoteSym.name]: "`",
     [unquoteSym.name]: ",",
     [unquoteSplicingSym.name]: ",@"
 };
-// Make a string representation of Lisp expression
 function str(x, quoteString = true, count, printed) {
     if (x === null) {
         return "nil";
-    }
-    else if (x === true) {
+    } else if (x === true) {
         return "t";
-    }
-    else if (x instanceof Cell) {
+    } else if (x instanceof Cell) {
         if (x.car instanceof Sym) {
-            let q = quotes[x.car.name];
-            if (q !== undefined && x.cdr instanceof Cell)
-                if (x.cdr.cdr == null)
-                    return q + str(x.cdr.car, true, count, printed);
+            const q = quotes[x.car.name];
+            if (q !== undefined && x.cdr instanceof Cell) {
+                if (x.cdr.cdr == null) return q + str(x.cdr.car, true, count, printed);
+            }
         }
         return "(" + strListBody(x, count, printed) + ")";
-    }
-    else if (typeof x === "string") {
-        if (!quoteString)
-            return x;
-        let bf = ['"'];
-        for (let ch of x) {
-            switch (ch) {
+    } else if (typeof x === "string") {
+        if (!quoteString) return x;
+        const bf = [
+            '"'
+        ];
+        for (const ch of x){
+            switch(ch){
                 case "\b":
                     bf.push("\\b");
                     break;
@@ -1096,38 +962,31 @@ function str(x, quoteString = true, count, printed) {
         }
         bf.push('"');
         return bf.join("");
-    }
-    else if (x instanceof Array) {
-        let s = x.map((e) => str(e, true, count, printed)).join(", ");
+    } else if (x instanceof Array) {
+        const s = x.map((e)=>str(e, true, count, printed)
+        ).join(", ");
         return "[" + s + "]";
-    }
-    else if (x instanceof Sym) {
-        return (x.isInterned) ? x.name : "#:" + x;
-    }
-    else if (isNumeric(x)) {
+    } else if (x instanceof Sym) {
+        return x.isInterned ? x.name : "#:" + x;
+    } else if (isNumeric(x)) {
         return convertToString(x);
-    }
-    else {
+    } else {
         return x + "";
     }
 }
-// Make a string representation of list, omitting its "(" and ")".
 function strListBody(x, count, printed) {
-    if (printed === undefined)
-        printed = [];
-    if (count === undefined)
-        count = 4; // threshold of ellipsis for circular lists
-    let s = [];
+    if (printed === undefined) printed = [];
+    if (count === undefined) count = 4;
+    const s = [];
     let y;
-    for (y = x; y instanceof Cell; y = y.cdr) {
+    for(y = x; y instanceof Cell; y = y.cdr){
         if (printed.indexOf(y) < 0) {
             printed.push(y);
             count = 4;
-        }
-        else {
+        } else {
             count--;
             if (count < 0) {
-                s.push("..."); // an ellipsis for a circular list
+                s.push("...");
                 return s.join(" ");
             }
         }
@@ -1137,105 +996,61 @@ function strListBody(x, count, printed) {
         s.push(".");
         s.push(str(y, true, count, printed));
     }
-    for (y = x; y instanceof Cell; y = y.cdr) {
-        let i = printed.indexOf(y);
-        if (i >= 0)
-            printed.splice(i, 1);
+    for(y = x; y instanceof Cell; y = y.cdr){
+        const i = printed.indexOf(y);
+        if (i >= 0) printed.splice(i, 1);
     }
     return s.join(" ");
 }
-// Read-Eval-Print Loop
 class REPL {
-    constructor() {
-        this.stdInTokens = new Reader();
-        this.oldTokens = new Reader();
-        this.readState = undefined;
-    }
-    // Read an expression from the standard-in asynchronously.
-    readExpression(prompt1, prompt2) {
-        this.oldTokens.copyFrom(this.stdInTokens);
-        try {
-            return this.stdInTokens.read();
-        }
-        catch (ex) {
-            if (ex === EndOfFile) {
-                if (this.readState !== undefined)
-                    throw Error("bad read state");
-                write(this.oldTokens.isEmpty() ? prompt1 : prompt2);
-                return new Promise((resolve, reject) => {
-                    this.readState = [resolve, reject, prompt1, prompt2];
-                    // Continue into stdInOnData/stdInOnEnd.
-                });
-            }
-            else {
-                this.stdInTokens.clear(); // Discard the erroneous tokens.
-                throw ex;
-            }
-        }
-    }
-    stdInOnData(line) {
-        this.oldTokens.push(line);
-        this.stdInTokens.copyFrom(this.oldTokens);
-        if (this.readState !== undefined) {
-            let [resolve, reject, prompt1, prompt2] = this.readState;
+    stdInTokens = new Reader();
+    async readExpression(prompt1, prompt2) {
+        const oldTokens = new Reader();
+        for(;;){
+            oldTokens.copyFrom(this.stdInTokens);
             try {
-                let exp = this.stdInTokens.read();
-                resolve(exp);
-                this.readState = undefined;
-            }
-            catch (ex) {
+                return this.stdInTokens.read();
+            } catch (ex) {
                 if (ex === EndOfFile) {
-                    write(this.oldTokens.isEmpty() ? prompt1 : prompt2);
-                    // Continue into stdInOnData/stdInOnEnd.
-                }
-                else {
-                    this.stdInTokens.clear(); // Discard the erroneous tokens.
-                    reject(ex);
-                    this.readState = undefined;
+                    write(oldTokens.isEmpty() ? prompt1 : prompt2);
+                    const line = await readLine();
+                    if (line === null) return EndOfFile;
+                    oldTokens.push(line);
+                    this.stdInTokens.copyFrom(oldTokens);
+                } else {
+                    this.stdInTokens.clear();
+                    throw ex;
                 }
             }
         }
     }
-    stdInOnEnd() {
-        if (this.readState !== undefined) {
-            let [resolve, _1, _2, _3] = this.readState;
-            resolve(EndOfFile);
-            this.readState = undefined;
-        }
-    }
-    // Repeat Read-Eval-Print until End-Of-File asynchronously.
     async readEvalPrintLoop(interp) {
-        for (;;) {
+        for(;;){
             try {
-                let exp = await this.readExpression("> ", "  ");
+                const exp = await this.readExpression("> ", "  ");
                 if (exp === EndOfFile) {
                     write("Goodbye\n");
                     return;
                 }
-                let result = interp.eval(exp, null);
+                const result = interp.eval(exp, null);
                 write(str(result) + "\n");
-            }
-            catch (ex) {
-                if (ex instanceof EvalException)
-                    write(ex + "\n");
-                else
-                    throw ex;
+            } catch (ex) {
+                if (ex instanceof EvalException) write(ex + "\n");
+                else throw ex;
             }
         }
     }
 }
-// Evaluate a string as a list of Lisp exps; return the result of the last exp.
 function run(interp, text) {
-    let tokens = new Reader();
+    const tokens = new Reader();
     tokens.push(text);
     let result = undefined;
-    while (!tokens.isEmpty()) {
-        let exp = tokens.read();
+    while(!tokens.isEmpty()){
+        const exp = tokens.read();
         result = interp.eval(exp, null);
     }
     return result;
 }
-// Lisp initialization script
 const prelude = `
 (setq defmacro
       (macro (name args &rest body)
@@ -1412,43 +1227,100 @@ const prelude = `
        ,@(if (cddr spec)
              \`(,(caddr spec))))))
 `;
-if (typeof process !== "undefined" && typeof require !== "undefined") {
-    write = (s) => process.stdout.write(s);
-    exit = process.exit;
-    let interp = new Interp();
-    run(interp, prelude);
-    async function main() {
+if (typeof Deno !== 'undefined') {
+    const decoder = new TextDecoder();
+    const buf = new Uint8Array(8000);
+    readLine = async function() {
+        const n = await Deno.stdin.read(buf);
+        if (n == null) return null;
+        return decoder.decode(buf.subarray(0, n));
+    };
+    const encoder = new TextEncoder();
+    write = (s)=>{
+        const bb = encoder.encode(s);
+        for(let n = 0; n < bb.length;)n += Deno.stdout.writeSync(bb.subarray(n));
+    };
+    exit = Deno.exit;
+    const main = async function() {
+        const interp = new Interp();
+        run(interp, prelude);
+        let repl = undefined;
+        const args = Deno.args.length == 0 ? [
+            '-'
+        ] : Deno.args;
         try {
-            let stdin = undefined;
-            let fs = undefined;
-            // Run interactively in UTF-8 for no arguments or the "-" argument.
-            // Run each as a script file in UTF-8 in order for other arguments.
-            let argv = process.argv;
-            if (argv.length <= 2)
-                argv = [undefined, undefined, "-"];
-            for (let i = 2; i < argv.length; i++) {
-                let fileName = argv[i];
-                if (fileName == "-") {
-                    if (stdin === undefined) {
-                        let repl = new REPL();
-                        stdin = process.stdin;
-                        stdin.setEncoding("utf8");
-                        stdin.on("data", (line) => repl.stdInOnData(line));
-                        stdin.on("end", () => repl.stdInOnEnd());
+            for (const fileName of args){
+                if (fileName === '-') {
+                    if (repl === undefined) {
+                        repl = new REPL();
                         await repl.readEvalPrintLoop(interp);
                     }
-                }
-                else {
-                    fs = fs || require("fs");
-                    let text = fs.readFileSync(fileName, "utf8");
+                } else {
+                    const text = Deno.readTextFileSync(fileName);
                     run(interp, text);
                 }
             }
-        }
-        catch (ex) {
+        } catch (ex) {
             console.log(ex);
-            process.exit(1);
+            exit(1);
         }
-    }
+    };
+    main();
+} else if (typeof process === 'object') {
+    let readLine_atFirst = true;
+    let readLine_resolve = null;
+    readLine = ()=>new Promise((resolve, _reject)=>{
+            if (readLine_atFirst) {
+                process.stdin.setEncoding('utf8');
+                process.stdin.on('data', (line)=>{
+                    if (readLine_resolve !== null) {
+                        readLine_resolve(line);
+                        readLine_resolve = null;
+                    }
+                });
+                process.stdin.on('end', ()=>{
+                    if (readLine_resolve !== null) {
+                        readLine_resolve(null);
+                        readLine_resolve = null;
+                    }
+                });
+                readLine_atFirst = false;
+            }
+            readLine_resolve = resolve;
+        })
+    ;
+    write = (s)=>process.stdout.write(s)
+    ;
+    exit = process.exit;
+    const main = async function() {
+        const interp = new Interp();
+        run(interp, prelude);
+        let repl = undefined;
+        let fs = undefined;
+        let argv = process.argv;
+        if (argv.length <= 2) argv = [
+            '',
+            '',
+            '-'
+        ];
+        try {
+            for(let i = 2; i < argv.length; i++){
+                const fileName = argv[i];
+                if (fileName == '-') {
+                    if (repl === undefined) {
+                        repl = new REPL();
+                        await repl.readEvalPrintLoop(interp);
+                    }
+                } else {
+                    fs = fs || require('fs');
+                    const text = fs.readFileSync(fileName, 'utf8');
+                    run(interp, text);
+                }
+            }
+        } catch (ex) {
+            console.log(ex);
+            exit(1);
+        }
+    };
     main();
 }

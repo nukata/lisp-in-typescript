@@ -5,16 +5,19 @@ This is a Lisp interpreter compatible with
 [lisp-in-cs](https://github.com/nukata/lisp-in-cs) and
 [lisp-in-go](https://github.com/nukata/lisp-in-go).
 
-I first wrote it three years ago (2016 or H28) in TypeScript 1.7 and revised it slightly
-one year later (2017 or H29) in TypeScript 2.2.
+I first wrote it six years ago (2016|H28) in TypeScript 1.7 and revised it slightly
+one year later (2017|H29) in TypeScript 2.2.
 It had been presented under the MIT License at
 <http://www.oki-osk.jp/esc/typescript/lisp-en.html> (broken link)
-until the spring of 2017 (H29).
-I made the repository in GitHub last year (2018 or H30).
+until the spring of 2017|H29.
+I made the repository in GitHub four years ago (2018|H30).
 
-Now (2019 or R1) I made use of `BigInt` if possible.
+Three yeares ago (2019|R1) I made use of `BigInt` if possible.
 If you run it on a recent Node.js, you will enjoy infinite-precision integers.
 I also revised REPL.
+
+Now (2022|R4) I revised it again to make it run with Deno and recent Safari.
+Note that `BigInt("+")` returns `0n` on the current Safari.
 
 Just as lisp-in-dart, lisp-in-cs and lisp-in-go,
 this is a Lisp-1 with TCO (tail call optimization)
@@ -23,25 +26,31 @@ in a loose meaning.
 It is easy to write a nontrivial script which runs both in this and in
 Common Lisp.
 Examples are found in 
-[lisp-in-dart/examples](http://github.com/nukata/lisp-in-dart/tree/master/examples).
+[lisp-in-dart/examples](https://github.com/nukata/lisp-in-dart/tree/master/examples).
 
 
 ## How to run
 
-Compile [`lisp.ts`](lisp.ts) with TypeScript 3.7 or later to get `lisp.js`, or just
+Compile [`lisp.ts`](lisp.ts) with Deno to get `lisp.js`, or just
 use [`examples/lisp.js`](examples/lisp.js), which I provided in the same way.
 
 ```
-$ tsc --version
-Version 3.7.2
-$ tsc -t ESNext --outFile list.js lisp.ts
+$ deno --version
+deno 1.20.3 (release, x86_64-apple-darwin)
+v8 10.0.139.6
+typescript 4.6.2
+$ deno bundle lisp.ts lisp.js
+Check file:///Users/suzuki/tmp/lisp-in-typescript/lisp.ts
+Bundle file:///Users/suzuki/tmp/lisp-in-typescript/lisp.ts
+Emit "lisp.js" (39.84KB)
+$ 
 ```
 
-Run `lis.js` with Node.js.
+Run `lisp.js` with Node.js and Deno.
 
 ```
 $ node --version
-v12.12.0
+v17.8.0
 $ node lisp.js
 > (+ 5 6)
 11
@@ -67,9 +76,9 @@ listp or mapcar and append _append letrec let when if equal /= <= >= > setcdr se
 tcar null rem = identity print consp not cdddr cddar cdadr cdaar caddr cadar caa
 dr caaar cddr cdar cadr caar defun defmacro *version* dump exit apply symbol-nam
 e intern make-symbol gensym *gensym-counter* terpri princ prin1 truncate / - * +
-mod % < eql numberp stringp length rplacd rplaca list eq atom cons cdr car)
+ mod % < eql numberp stringp length rplacd rplaca list eq atom cons cdr car)
 > *version*
-(2.0 "TypeScript" "Nukata Lisp")
+(2.1 "TypeScript" "Nukata Lisp")
 > (exit 0)
 $
 ```
@@ -85,7 +94,7 @@ $ cat examples/fib.l
       n
     (+ (fib (- n 1))
        (fib (- n 2)))))
-$ node lisp.js examples/fib.l -
+$ deno run --allow-read lisp.js examples/fib.l -
 > (fib 10)
 55
 > (fib 20)

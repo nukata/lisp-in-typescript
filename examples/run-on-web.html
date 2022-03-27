@@ -18,7 +18,7 @@
   </head>
   <body>
     <h1>A Lisp interpreter in TypeScript on your Browser</h1>
-    <address>April 29, 2018 (H30.4/29 in Japan)<br> SUZUKI Hisao
+    <address>March 28, 2022 (R4.3.28 in Japan)<br> SUZUKI Hisao
     </address>
 
     <p>
@@ -35,12 +35,11 @@
       is written in the text area as an <i>example</i>.
       Just click the <b>Evaluate</b> button and
       <tt>5</tt> and <tt>55</tt> will be displayed.
-      Feel free to modify the program or 
-      wipe it off to write arbitrary Lisp expressions there.
+      Modify the program or wipe it off and write your Lisp expressions there.
 
     <p>
-      The Lisp interpreter <tt>lisp.js</tt> used here is an ECMAScript
-      program generated from <tt>lisp.ts</tt> with the TypeScript compiler.
+      The Lisp interpreter <tt>lisp.js</tt> used here has been compiled
+      from <tt>lisp.ts</tt> with a TypeScript compiler in Deno 1.20.
 
     <p>
 <textarea id="r_area" rows="15" cols="80">
@@ -60,28 +59,28 @@
     <pre id="w_area" style="height: 10em"></pre>
 
     <script type="text/javascript">
-      var r_area = document.getElementById("r_area"); // to read
-      var w_area = document.getElementById("w_area"); // to write
+      const r_area = document.getElementById("r_area"); // to read
+      const w_area = document.getElementById("w_area"); // to write
 
-      function write(s) {
+      write = (s) => {
           w_area.innerHTML += safe_string(s);
-      }
+      };
 
-      function exit(n) {
-          var s = safe_string(str(n));
+      exit = (n) => {
+          const s = safe_string(str(n));
           w_area.innerHTML += (
               '<span class="warn">(exit ' + s +
                   ') is not implemented.</span>\n');
           return null;
-      }
+      };
 
       function r_eval() {
-          var s = r_area.value;
+          const s = r_area.value;
           w_area.innerHTML = '';
           try {
-              var interp = new Interp();
+              const interp = new Interp();
               run(interp, prelude);
-              var r = run(interp, s);
+              const r = run(interp, s);
               w_area.innerHTML += safe_string(str(r));
           } catch (ex) {
               w_area.innerHTML += (
